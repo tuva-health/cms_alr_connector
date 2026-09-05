@@ -43,6 +43,15 @@ and report period parameters that are required to accurately process the ALR fil
 the latest enrollment records to be used. The filename for each individual file should be
 parsed from the full file path (e.g. P.A****.ACO.AALR.DYY9999.T*******_*-*.csv)
 
+#### Risk scores:
+CMS ships the CMS-HCC risk scores (`bene_rsk_r_scre_01` to `_12`, `esrd_score`, `dis_score`,
+`agdu_score`, `agnd_score` and their `dem_*` counterparts) and the dual-eligible person-years
+fraction `bene_psnyrs_dual` with more than two decimals. The connector keeps those decimals: the
+`cast_score` macro types these columns as `numeric(38,10)` (`BIGNUMERIC` on BigQuery), on the
+staging model and all the way through to `enrollment`. Counts and dollar amounts keep the
+`numeric(38,2)` of `cast_numeric`. Land the score columns as text or as a numeric type with at
+least the decimals CMS publishes; a source table that rounds them cannot be repaired here.
+
 ### Step 4: Configure Input Database and Schema
 Next you need to tell dbt where your Medicare ALR source data is located.  Do this using the variables `input_database` and `input_schema` in the `dbt_project.yml` file.  You also need to configure your `profile` in the `dbt_project.yml`.
 <br/><br/> 
