@@ -63,3 +63,77 @@ models:
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+
+unit_tests:
+  - name: stg_aalr1_keeps_cms_score_precision
+    description: >
+      The CMS-HCC risk scores and the dual-eligible person-years fraction keep
+      the decimals CMS ships. The expected output is written as SQL on purpose:
+      a dict-format expectation is cast to the model's actual column type before
+      comparison, so it would pass even when the model truncates to two decimals.
+    model: stg_aalr1_assigned_beneficiaries
+    given:
+      - input: source('cms_ssp_reports', 'aalr1_assigned_beneficiaries')
+        # A file name keeps extract_file_metadata() deterministic: with a null
+        # name its concat() yields '20' on some adapters and null on others.
+        rows:
+          - file_name: 'P.A0001.ACO.AALR.2023Q4.D231001.T0000000_1-1.csv'
+            bene_rsk_r_scre_01: '1.0134567891'
+            bene_rsk_r_scre_02: '1.0234567891'
+            bene_rsk_r_scre_03: '1.0334567891'
+            bene_rsk_r_scre_04: '1.0434567891'
+            bene_rsk_r_scre_05: '1.0534567891'
+            bene_rsk_r_scre_06: '1.0634567891'
+            bene_rsk_r_scre_07: '1.0734567891'
+            bene_rsk_r_scre_08: '1.0834567891'
+            bene_rsk_r_scre_09: '1.0934567891'
+            bene_rsk_r_scre_10: '1.1034567891'
+            bene_rsk_r_scre_11: '1.1134567891'
+            bene_rsk_r_scre_12: '1.1234567891'
+            esrd_score: '2.345'
+            dis_score: '0.987654321'
+            agdu_score: '1.2345678901'
+            agnd_score: '0.5'
+            dem_esrd_score: '1.001'
+            dem_dis_score: '0.4444444444'
+            dem_agdu_score: '1.1'
+            dem_agnd_score: '0.9999999999'
+            bene_psnyrs_dual: '0.4166666667'
+    expect:
+      format: sql
+      # The numeric literals carry an exponent on purpose. A plain decimal
+      # literal is unioned with the model's column at the column's own scale, so
+      # on a two-decimal column it would be rounded to two decimals before the
+      # comparison and the test would pass anyway. A float literal makes the
+      # comparison happen in floating point, where the missing digits show.
+      rows: |
+        {%- set passthrough = [
+            'bene_mbi_id', 'bene_hic_num', 'bene_1st_name', 'bene_last_name',
+            'bene_sex_cd', 'bene_brth_dt', 'bene_death_dt', 'geo_ssa_cnty_cd_name',
+            'geo_ssa_state_name', 'state_county_cd', 'in_va_max', 'va_tin', 'va_npi',
+            'cba_flag', 'assignment_type', 'assigned_before', 'asg_status', 'partd_months',
+            'hcc_version', 'new_enrollee', 'lti_status', 'bene_race_cd', 'directory_name'
+        ] -%}
+        {%- for i in range(1, 13) %}{% do passthrough.append('enrollflag' ~ i) %}{% endfor -%}
+        {%- for i in range(1, 121) %}{% do passthrough.append('hcc_col_' ~ i) %}{% endfor -%}
+        select
+        {%- for column in passthrough %}
+          null as {{ column }},
+        {%- endfor %}
+        {%- for i in range(1, 13) %}
+          1.{{ '%02d' % i }}34567891e0 as bene_rsk_r_scre_{{ '%02d' % i }},
+        {%- endfor %}
+          2.345e0 as esrd_score,
+          0.987654321e0 as dis_score,
+          1.2345678901e0 as agdu_score,
+          0.5e0 as agnd_score,
+          1.001e0 as dem_esrd_score,
+          0.4444444444e0 as dem_dis_score,
+          1.1e0 as dem_agdu_score,
+          0.9999999999e0 as dem_agnd_score,
+          0.4166666667e0 as bene_psnyrs_dual,
+          'P.A0001.ACO.AALR.2023Q4.D231001.T0000000_1-1.csv' as file_name,
+          'AALR' as file_type,
+          '2023Q4' as file_period,
+          '2023' as performance_year,
+          'T0000000_1-1' as iteration
