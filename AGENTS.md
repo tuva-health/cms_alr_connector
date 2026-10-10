@@ -63,7 +63,7 @@ medicare_cclf_connector → the_tuva_project
 
 - **`models/intermediate/`**: Three tables that handle the complex transformations:
   - `aalr_history`: Joins all staging models, pivots 12 monthly `enrollflag` columns into individual rows (one per enrollment month), keeps the top TIN (by encounter count, ties to the lowest `MASTER_ID`) and, under it, the top NPI (by PCS count, ties to the lowest `NPI_USED`) from the same delivery as the Table 1-1 row (ACO, PY, period, T-stamp) with `row_number()` (not `dbt_utils.deduplicate()`, whose DuckDB implementation drops rows with NULL columns), and enriches with turnover/voluntary/underserved flags.
-  - `aalr_governing_file`: One row per (ACO, `enroll_month`): the file that governs the month (earliest covering performance year, then the `priority` field from the `mssp_file_parameters` seed, then the later T-stamp). See the README's "Which file decides each month".
+  - `aalr_governing_file`: One row per (ACO, `enroll_month`): the file that governs the month (earliest covering performance year, then the `priority` field from the `mssp_file_parameters` seed, then the later T-stamp; a benchmark, delivered with the following performance year, governs only months no earlier year's file covers). It supplies all ALR-sourced fields for the month; CCLF's `data_sharing_flag` comes from CCLF8 and is unaffected. See the README's "Which file decides each month".
   - `aalr_history_filtered`: Keeps only the `aalr_history` rows from each month's governing file, one per beneficiary-month.
 
 - **`models/final/enrollment.sql`**: Converts the filtered history into the CCLF connector's expected enrollment format — calculates month start/end dates, formats `member_month` as YYYYMM, and filters to `enroll_flag > 0`.
