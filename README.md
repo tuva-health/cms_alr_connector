@@ -18,7 +18,7 @@ Install it as a package in your own dbt project, as [cms_mssp_connector](https:/
 - DuckDB
 - Snowflake
 
-These are the warehouses CI builds on every pull request (see [integration_tests/README.md](integration_tests/README.md)).
+These are the warehouses CI builds on every pull request, and the ones the release gate (`CI -- All Warehouses`) builds on before every release (see [integration_tests/README.md](integration_tests/README.md)). Other warehouses may work but are not tested.
 <br/><br/>  
 
 ## ✅ Quickstart Guide
@@ -97,6 +97,49 @@ Now you're ready to do claims data analytics!
 ## 🧪 Development
 
 The `integration_tests` project installs this connector from the working tree, loads fixture seeds where `source()` expects the raw ALR and CCLF tables, and builds the connector against them. CI runs it on DuckDB and Snowflake. From the repo root, `scripts/dbt-local` runs dbt against it with the uv-locked toolchain; see [integration_tests/README.md](integration_tests/README.md).
+<br/><br/>
+
+## 🚀 Releasing
+
+The `version:` in `dbt_project.yml` is the release version. Releases are tagged `v<version>`
+(for example `v0.1.0`). There is no changelog: release notes are generated from the merged PRs,
+grouped by their release label (see `.github/release.yml`). Every PR into `main` carries exactly
+one of `breaking-change`, `enhancement`, `bug`, `docs` or `ignore-for-release`; the
+`release label` check enforces it. The required checks and commit statuses are described in
+[integration_tests/README.md](integration_tests/README.md#ci).
+
+To cut a release:
+
+1. Open a PR from a branch in this repository that bumps `version:` in `dbt_project.yml`.
+   A version ending in `-rc` makes a prerelease.
+2. Run **Actions → CI -- All Warehouses → Run workflow** from `main` with the PR number.
+   It builds the PR's test merge on every supported warehouse and posts the
+   `CI / All Warehouses` status on the PR. Merge only once it passes for the PR's current
+   head; rerun it after any new push or a change to `main`.
+3. Merge. `create-release.yml` tags the merge commit `v<version>` and creates a **draft**
+   GitHub Release with generated notes.
+4. Review the draft's notes, then publish it (tick "Set as the latest release" unless it is a
+   prerelease).
+
+If the workflow fails after the merge, rerun it with **Actions → Create Release → Run
+workflow** from `main`; it reuses an existing tag only when the tag points to the current
+`main` commit.
+
+**The first release, `v0.1.0`,** keeps the version `dbt_project.yml` already has, so its PR
+bumps nothing and the merge does not trigger a release. Follow steps 1 to 2 with a release PR
+that leaves `version: '0.1.0'` as it is, merge it, and then, before anything else merges, run
+**Actions → Create Release → Run workflow** from `main`. The run tags the current `main` commit
+`v0.1.0` and creates the draft. With no earlier release, the generated notes cover every merged
+PR in the repository's history, so edit the draft before publishing it. Every later release
+bumps `version:` as above.
+
+Projects install a release by tag:
+
+```yaml
+packages:
+  - git: https://github.com/tuva-health/cms_alr_connector.git
+    revision: v0.1.0
+```
 <br/><br/>
 
 ## 🙋🏻‍♀️ How do I contribute?
