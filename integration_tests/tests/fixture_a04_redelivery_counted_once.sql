@@ -11,8 +11,8 @@
 
     Every beneficiary-month appears once in enrollment, and 9TT0FK0XX02's 2025
     rows carry the redelivered score 1.07654321098765, not the T0300000 value
-    1.01234567890123. (Full 14-decimal precision is TUVA-107's test, A07; this
-    one tolerates the current 10 decimals.)
+    1.01234567890123, compared at the full 14 decimals the connector keeps
+    (numeric(38,14), TUVA-107).
 */
 
 select
@@ -32,4 +32,4 @@ select
 from {{ ref('enrollment') }}
 where current_bene_mbi_id = '9TT0FK0XX02'
   and cast(enrollment_start_date as date) between cast('2025-01-01' as date) and cast('2025-09-01' as date)
-  and (agnd_score is null or abs(agnd_score - 1.07654321098765) > 0.000000001)
+  and (agnd_score is null or agnd_score <> cast('1.07654321098765' as decimal(38, 14)))
