@@ -331,15 +331,19 @@ LEFT JOIN top_npi AS tn
   AND acm.PERFORMANCE_YEAR = tn.PERFORMANCE_YEAR
   AND acm.FILE_PERIOD = tn.FILE_PERIOD
   AND acm.t_stamp = tn.t_stamp
+-- Tables 1-6 and 1-9 likewise come from the Table 1-1 row's own delivery, so
+-- a redelivered period doesn't multiply its rows (one per delivery).
 LEFT JOIN {{ ref('stg_aalr6_beneficiaries_assignable_or_voluntary') }} as baov
   ON acm.BENE_MBI_ID = baov.BENE_MBI_ID
-  AND acm.FILE_PERIOD = baov.FILE_PERIOD
+  AND acm.aco_id = {{ dbt.split_part('baov.file_name', "'.'", 2) }}
   AND acm.PERFORMANCE_YEAR = baov.PERFORMANCE_YEAR
-  -- AND acm.ITERATION = baov.ITERATION -- Normalize iterations to not include file types, then add back in
+  AND acm.FILE_PERIOD = baov.FILE_PERIOD
+  AND acm.t_stamp = {{ dbt.split_part('baov.ITERATION', "'_'", 1) }}
 LEFT JOIN {{ ref('stg_aalr9_beneficiaries_underserved')}} as bu
   ON acm.BENE_MBI_ID = bu.BENE_MBI_ID
-  AND acm.FILE_PERIOD = bu.FILE_PERIOD
+  AND acm.aco_id = {{ dbt.split_part('bu.file_name', "'.'", 2) }}
   AND acm.PERFORMANCE_YEAR = bu.PERFORMANCE_YEAR
-  -- AND acm.ITERATION = bu.ITERATION -- Normalize iterations to not include file types, then add back in
+  AND acm.FILE_PERIOD = bu.FILE_PERIOD
+  AND acm.t_stamp = {{ dbt.split_part('bu.ITERATION', "'_'", 1) }}
 LEFT JOIN latest_beneficiary_turnover as lbt
   ON acm.BENE_MBI_ID = lbt.BENE_MBI_ID AND acm.performance_year = lbt.performance_year
