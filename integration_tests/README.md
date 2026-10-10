@@ -30,9 +30,9 @@ against those seeds. All CI and local runs use `--project-dir integration_tests`
 - `macros/`: CI helpers: schema naming, unit-test schema setup
   (`ensure_unit_test_schemas`, an on-run-start hook), and
   `drop_ci_schemas` for per-run cleanup.
-- `profiles/`: one profile per CI warehouse. `profiles/local_duckdb` is the
-  default for local runs and the DuckDB CI job; `profiles/snowflake` is the
-  Snowflake CI job's.
+- `profiles/`: one profile per supported warehouse. `profiles/local_duckdb`
+  is the default for local runs and the DuckDB CI job; `profiles/snowflake` is
+  the Snowflake CI job's.
 
 ## Fixtures
 
@@ -109,21 +109,30 @@ integration_tests --profiles-dir integration_tests/profiles/local_duckdb`.
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every pull request, whatever its base
-branch, so stacked PRs get the same checks:
+Every pull request runs `.github/workflows/ci.yml`, whatever its base branch,
+so stacked PRs get the same checks. Pull requests to `main` also run
+`.github/workflows/release-label.yml`:
 
 | Check | What it runs |
 | --- | --- |
 | `uv lock check` | `uv lock --check`: `uv.lock` is the single toolchain pin. |
 | `dbt build / duckdb` | deps, parse, fixture seeds, connector unit tests, connector build. No secrets; runs on fork PRs too. |
 | `dbt build / snowflake` | Same steps, then builds the connector and every installed package (medicare_cclf_connector, the_tuva_project and its dependencies) downstream. Same-repo PRs only. |
+| `CI / Snowflake` | Commit status on the PR head carrying the Snowflake build's result. Same-repo PRs get it from `ci.yml`; fork PRs only from [External PR CI](#fork-pull-requests). |
+| `release label` | The PR has exactly one release label (see the Releasing section of the root README). |
+
+The required checks are `uv lock check`, `dbt build / duckdb`, `CI / Snowflake`
+and `release label`. `CI / Snowflake` stands in for `dbt build / snowflake`:
+that job is skipped on fork PRs, and GitHub counts a skipped check as passing,
+whereas a missing status blocks the merge until a maintainer has run the
+Snowflake build.
 
 The seeds load before the unit tests: the unit test on
 `stg_aalr1_assigned_beneficiaries` mocks a source, and dbt reads the source
 table's columns to build the mock.
 
 Each job installs only its warehouse's adapter: `uv sync --locked --extra
-<warehouse>`, one `pyproject.toml` extra per CI warehouse.
+<warehouse>`, one `pyproject.toml` extra per supported warehouse.
 
 Each Snowflake run sets `tuva_schema_prefix` to
 `ci_pr_<pr>_<head sha8>_r<run id>_a<attempt>`, loads fixtures into
@@ -134,15 +143,38 @@ share schemas. A new push cancels the PR's in-flight run.
 
 `ci.yml` is also a reusable workflow (`workflow_call`) with inputs `warehouse`
 (`duckdb`, `snowflake`, or `all`), `scope` (`full` or `connector`),
-`checkout_ref`, and `schema_prefix`.
+`checkout_ref`, and `schema_prefix`. With `publish_status`, plus the PR number,
+its base branch and its exact base, head and test-merge commits, it posts a
+commit status (`CI / Snowflake`, or `CI / All Warehouses` for `all`) on the PR
+head: pending when it starts, then the result. The status reports an error instead if the PR
+or its base branch moves while CI runs, and a run never overwrites a newer
+run's status. **Re-run** cannot clear that error: it replays the old event,
+with the old base. Push a commit, or close and reopen the PR. Retargeting a PR
+(by hand, or when a stacked PR's parent merges) starts no run on its own, so
+retarget between runs, not during one.
 
 ### Fork pull requests
 
 Fork PRs get the DuckDB check automatically; the Snowflake job is skipped
 because it would expose repository secrets to fork code. After reviewing the
 PR's code, a maintainer runs **Actions → External PR CI → Run workflow** from
-`main` with the PR number. It pins the PR's current test-merge commit and runs
-the Snowflake build through `ci.yml`.
+`main` with the PR number. It pins the PR's current test-merge commit, runs
+the Snowflake build through `ci.yml`, and posts `CI / Snowflake` on the PR
+head. Rerun it after every new push to the fork PR.
+
+### All warehouses
+
+`CI -- All Warehouses` (`ci-all-warehouses.yml`) is the release gate. A
+maintainer runs it from `main` with a same-repo PR's number before a release PR
+merges; it builds the PR's test merge with `warehouse: all` and posts
+`CI / All Warehouses` on the PR head. `all` is DuckDB and Snowflake, the
+warehouses the root README lists as supported. It is not a required check,
+since every PR would then need it.
+
+To support another warehouse, add all of these in one PR: a `pyproject.toml`
+extra for its adapter (then `uv lock`), a profile under `profiles/`, its secrets
+and a case in `ci.yml` (the `all` warehouse list and the warehouse job's
+settings check and `input_database`), and the README list, once a run passes.
 
 ## Snowflake authentication
 

@@ -6,6 +6,15 @@ This file provides guidance to Agents when working with code in this repository.
 
 This is a dbt package (`cms_aalr_connector`, repo [tuva-health/cms_alr_connector](https://github.com/tuva-health/cms_alr_connector)) that transforms raw CMS Medicare Shared Savings Program Assignment List Reports (quarterly QALR and annual AALR) into enrollment data for the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector), which feeds into the [Tuva Project](https://github.com/tuva-health/the_tuva_project) healthcare analytics framework. Client projects such as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) install it as a package. Supported warehouses are DuckDB and Snowflake, the ones CI builds.
 
+## Before you start
+
+- **Running dbt, tests or CI**: read [integration_tests/README.md](integration_tests/README.md).
+  Every run uses `--project-dir integration_tests`; the toolchain is `uv` and `uv.lock`.
+- **Opening a PR**: apply exactly one release label (`breaking-change`,
+  `enhancement`, `bug`, `docs`, `ignore-for-release`); the generated
+  release notes are grouped by it.
+- **Releasing or bumping `version:`**: read the Releasing section of [README.md](README.md#-releasing).
+
 ## Common Commands
 
 Development runs go through the `integration_tests` dbt project, which installs this package from `local: ../` and loads fixture seeds where `source()` expects the raw ALR and CCLF tables. `scripts/dbt-local` runs dbt against it with the uv-locked toolchain and a local DuckDB file. See [integration_tests/README.md](integration_tests/README.md) for the CI checks, the Snowflake setup and the var inventory.
