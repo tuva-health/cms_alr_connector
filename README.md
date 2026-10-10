@@ -13,6 +13,23 @@ The Medicare ALR Connector is a dbt package that maps raw Medicare Shared Saving
 Install it as a package in your own dbt project, as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) does. It brings in the Medicare CCLF Connector (pinned to a commit) and, through it, the Tuva Project.
 <br/><br/>  
 
+## 🩺 Attributed practice and provider
+
+`provider_attribution` gives each beneficiary-month a practice (TIN) and a provider (NPI) from the ALR file that governs that month:
+
+- **Practice:** the ACO participant TIN with the most primary care services in Table 1-2 (`B_EM_LINE_CNT_T`).
+- **Provider:** under that TIN, the individual NPI with the most primary care services in Table 1-4 (`PCS_COUNT`). An NPI with more services under a different TIN is not used.
+- **Ties:** a TIN tie on `B_EM_LINE_CNT_T` goes to the lowest `MASTER_ID`, and an NPI tie on `PCS_COUNT` to the lowest `NPI_USED`.
+- **Same delivery:** Tables 1-2 and 1-4 are read only from the delivery that governs the month (see [Which file decides each month](#which-file-decides-each-month)), matched on ACO, performance year, report period and T-stamp. If a redelivery has no Table 1-2 or 1-4 rows for a beneficiary, their practice and provider are NULL for the months it governs, even when the original delivery had them.
+- A beneficiary with no Table 1-2 or 1-4 rows has a NULL practice and provider. The ALR User's Guide, sections 1.2 and 1.4, says this happens for beneficiaries seen only at a CCN (FQHC, RHC, Method II CAH, ETA hospital) or assigned only through voluntary alignment.
+
+These rules are our choice. CMS assigns a beneficiary to an ACO, not to a TIN or an NPI inside it, so the spec doesn't pick one. The tie-break is our choice too: CMS breaks ties on the most recent primary care service date (ALR User's Guide v18 §1.4; Assignment Methodology Specifications §2.3.3), and the ALR doesn't include that date. The lowest ID is arbitrary but gives the same answer on every run and every warehouse.
+
+Before v0.1.0:
+- Both columns were NULL for every beneficiary on DuckDB, because the TIN and NPI ranking dropped any row with a blank column such as `BENE_HIC_NUM` (TUVA-112). Snowflake was unaffected.
+- Ties were broken by whatever order the warehouse returned the rows in, and a redelivered period could pick up the TIN and NPI of the delivery it replaced (TUVA-108).
+<br/><br/>
+
 ## 🔌 Database Support
 
 - DuckDB
@@ -61,6 +78,19 @@ The field `file_name` is used throughout this connector to determine the perform
 | Annual (benchmark) ALR | `P.A<ACO>.ACO.AALR.Y<yyyy>.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, e.g. `...AALR.Y2023.D259999...` |
 
 The fourth part is the report type (`QALR` or `AALR`) and the fifth the report period (`<PY>Q<n>` or `Y<yyyy>`). The two digits after `D` in the sixth part give the performance year (`D25…` is PY 2025). A name with no period part, `P.A<ACO>.ACO.AALR.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, is read as the initial assignment for PY 20YY. The performance year and period are joined to the `mssp_file_parameters` seed, whose `priority` picks the file that wins: lower is preferred.
+
+#### Which file decides each month:
+Several ALRs cover the same months: the quarterly ALRs of a performance year overlap each other, the benchmark ALRs overlap the quarterlies, and the next performance year's reports overlap the current one. For each month the connector picks **one governing file** per ACO, and that file alone decides who is enrolled:
+
+1. Take the **earliest performance year** with a file that covers the month. A closed performance year is final, so a later year's reports never rewrite it.
+2. Within that year, take the **last file in the order initial < Q1 < Q2 < Q3 < Q4 < benchmark** (the `priority` column of `mssp_file_parameters`). The benchmark ALR is the final word on every month it covers.
+3. If the same period was delivered more than once, the **later T-stamp** wins.
+
+A file covers the twelve months its `EnrollFlag1`..`EnrollFlag12` map onto, counted from the file's `period_start_date` in `mssp_file_parameters`. **A beneficiary the governing file does not list is not enrolled for that month**, even if an earlier or later file lists them. For example, a beneficiary dropped from 2025Q3 is not enrolled in any 2025Q3 month, and one removed in a redelivery is not enrolled in the months it governs.
+
+The CMS ALR documentation doesn't say how overlapping reports combine, so this rule is our choice. It replaces an earlier one that picked the earliest file per beneficiary, which kept such beneficiaries enrolled from a superseded file and, after an MBI change, could enroll the same person twice in a month. The governing file for each month is in the `aalr_governing_file` model.
+
+`aalr_history_filtered` no longer has the Table 1-5 turnover reasons (`plur_r05` .. `nofnd_r06`). A beneficiary assigned in the governing file is never in that file's Table 1-5, so on those rows the reasons could only be empty. Before, a beneficiary who dropped out in one quarter and came back in the governing file carried the old reason on months where they are assigned. `aalr_history` still carries the performance year's latest reason on every row.
 
 #### Risk scores:
 CMS ships the CMS-HCC risk scores (`bene_rsk_r_scre_01` to `_12`, `esrd_score`, `dis_score`,

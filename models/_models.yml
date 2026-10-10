@@ -16,13 +16,55 @@ models:
 
 ### intermediate
   - name: aalr_history
-    description: Combined table of all historical assignment list reports, pivoted to have one row per beneficiary per month
+    description: >
+      Combined table of all historical assignment list reports, pivoted to one
+      row per beneficiary, month and Table 1-1 file. Tables 1-2, 1-4, 1-6 and
+      1-9 are joined from the same delivery as the Table 1-1 row.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [bene_mbi_id, enroll_month, file_name]
+
+  - name: aalr_governing_file
+    description: >
+      The ALR that governs each enrollment month, one row per ACO and month: of
+      the delivered files whose EnrollFlag1..12 cover the month, the earliest
+      performance year, then the lowest mssp_file_parameters priority (benchmark
+      last), then the latest T-stamp. Join any ALR table to it on (aco_id,
+      performance_year, file_period, t_stamp) to read that table from the
+      governing file.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+    columns:
+      - name: aco_id
+        description: ACO ID, the second dot-separated part of file_name (A<ACO>).
+      - name: enroll_month
+        description: First day of the enrollment month.
+      - name: performance_year
+        description: Performance year of the governing file, as in the staging models.
+      - name: file_period
+        description: Report period of the governing file (e.g. 2025Q3, Y2024), as in the staging models.
+      - name: t_stamp
+        description: Delivery T-stamp of the governing file, ITERATION without its _1-<table> suffix (e.g. T0310000).
+      - name: file_name
+        description: The governing file's Table 1-1 file name.
+      - name: priority
+        description: mssp_file_parameters priority of the governing file.
+      - name: alr_file_type
+        description: mssp_file_parameters file_type of the governing file (initial, quarterly, benchmark).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [aco_id, enroll_month]
 
   - name: aalr_history_filtered
-    description: Filtered version of aalr_history with only valid records from the latest AALR file for a given enroll_month
+    description: >
+      One row per beneficiary and enrollment month, from the ALR that governs
+      the month (aalr_governing_file). A beneficiary the governing file does not
+      list has no row for that month. It does not carry the Table 1-5 turnover
+      reasons; they are on aalr_history.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
