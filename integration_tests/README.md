@@ -23,9 +23,9 @@ against those seeds. All CI and local runs use `--project-dir integration_tests`
   pinned `medicare_cclf_connector` revision (source `medicare_cclf`). They load
   into `var('input_database')`.`var('input_schema')`, so the connectors read
   them exactly as they read a client's raw tables. Every column loads as a
-  string. The seeds are header-only for now. There is no seed for the CCLF
-  `enrollment` source, which `cms_alr_connector: true` replaces with this
-  connector's `enrollment` model.
+  string. The seeds hold synthetic fixtures (see Fixtures below). There is no
+  seed for the CCLF `enrollment` source, which `cms_alr_connector: true`
+  replaces with this connector's `enrollment` model.
 - `tests/`: integration-only singular tests.
 - `macros/`: CI helpers: schema naming, unit-test schema setup
   (`ensure_unit_test_schemas`, an on-run-start hook), and
@@ -33,6 +33,58 @@ against those seeds. All CI and local runs use `--project-dir integration_tests`
 - `profiles/`: one profile per CI warehouse. `profiles/local_duckdb` is the
   default for local runs and the DuckDB CI job; `profiles/snowflake` is the
   Snowflake CI job's.
+
+## Fixtures
+
+The seeds are small, fully synthetic ALR and CCLF tables. A generator kept
+outside this repository builds them deterministically. Every identifier is
+invented and visibly fake (MBIs `9TT0FK…`, ACO `A0000`, TINs `00100000#`, NPIs
+`199990…`, SSA state-county `00103`, names `SYN…`/`CCLFTEST`/`ALRTEST`), and all
+dates fall in an invented 2023-10 to 2026-03 window. No real beneficiary or
+provider data is committed, and fixture files must not be hand-edited: change
+and rerun the generator instead.
+
+The ALR seeds hold seven deliveries for one ACO. `file_name` is the inner CSV
+name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
+`directory_name` the nested zip that holds it:
+
+| delivery | inner ALR | window |
+| --- | --- | --- |
+| initial assignment (HASSGN) | `AALR.D259999.T0000000` | 2023-10..2024-09 |
+| benchmark (BNMRK) | `AALR.Y2024.D259999.T1111111` | 2024 |
+| quarterly (QEXPU) | `QALR.2025Q1`..`2025Q3`, `T0100000`..`T0300000` | 2024-04.. to ..2025-09 |
+| redelivery | `QALR.2025Q3.D259999.T0310000` | 2024-10..2025-09 |
+| next performance year | `QALR.2026Q1.D269999.T0100000` | 2025-04..2026-03 |
+
+The CCLF seeds are the medicare_cclf_connector fixtures for the tables the
+pinned revision reads, and share their beneficiaries (9TT0FK0XX01-28) with
+the ALR seeds.
+
+Each scenario has a singular test in `tests/` (`fixture_<scenario>.sql`) that
+returns the rows breaking the outcome the CMS ALR specifications call for. The
+tests do not assert the connector's current behaviour. For each beneficiary
+and month, the governing ALR is the latest-received file of the earliest
+performance year whose files cover that month. Within a performance year,
+files arrive in this order: initial, Q1, benchmark, Q2, Q3, Q4, and a later
+T-stamp of the same period wins. The scenarios cover:
+
+- a later quarterly ALR superseding earlier ones (A01) and the month
+  precedence between initial, benchmark and quarterly files (A02, A03);
+- turnover: a drop-out listed in Table 1-5 (A02) and a re-entry (A02b);
+- a period redelivered under a later T-stamp: counted once with corrected
+  values (A04), a beneficiary removed (A04b), Table 1-2/1-4 rows removed (A04c);
+- EnrollFlag codes 0-4 and gaps (A05), deaths (A06), 14-decimal risk scores
+  (A07);
+- provider attribution with several TINs and NPIs (A08) and none (A08b);
+- Tables 1-6 and 1-9 (A09, A09b);
+- ALR months matching the CCLF fixtures' enrollment (A10), an initial-assignment
+  file (A11), overlapping performance years (A12), and an MBI change across
+  performance years (A13).
+
+Tests for known connector bugs carry the Linear issue key as a tag and fail
+until the bug is fixed, e.g. `--select tag:tuva-110`. Every fixture test
+carries the `fixture` tag and depends on both final models, so a failing test
+never skips `enrollment` or `provider_attribution`.
 
 ## Local runs
 
