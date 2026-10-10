@@ -1,4 +1,4 @@
-{{ config(tags=['fixture']) }}
+{{ config(tags=['fixture', 'tuva-112']) }}
 
 -- Depend on both final models so this test runs after them: a failing
 -- fixture test then never skips enrollment or provider_attribution.
@@ -6,14 +6,16 @@
 -- depends_on: {{ ref('provider_attribution') }}
 
 /*
-    Fixture scenario A08: 9TT0FK0XX23 has two TINs in Table 1-2 (EM line
+    Fixture scenario A08 (TUVA-112): 9TT0FK0XX23 has two TINs in Table 1-2 (EM line
     counts 7 for 001000001, 3 for 001000002) and three TIN-NPI rows in 1-4:
     001000001/1999900081 (PCS 5), 001000001/1999900107 (PCS 2) and
     001000002/1999900099 (PCS 9), in every ALR.
 
     Every provider_attribution row has practice 001000001 and provider
     1999900081: the top NPI of the top TIN, not the higher-PCS NPI that sits
-    under the other TIN.
+    under the other TIN. On DuckDB dbt_utils.deduplicate re-joins on every
+    column with a natural join, so rows with a NULL column (BENE_HIC_NUM,
+    BENE_DEATH_DT) drop out and TOP_TIN / TOP_NPI are NULL.
 */
 
 select

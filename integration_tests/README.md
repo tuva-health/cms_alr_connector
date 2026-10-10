@@ -63,10 +63,11 @@ the ALR seeds.
 Each scenario has a singular test in `tests/` (`fixture_<scenario>.sql`) that
 returns the rows breaking the outcome the CMS ALR specifications call for. The
 tests do not assert the connector's current behaviour. For each beneficiary
-and month, the governing ALR is the latest-received file of the earliest
-performance year whose files cover that month. Within a performance year,
-files arrive in this order: initial, Q1, benchmark, Q2, Q3, Q4, and a later
-T-stamp of the same period wins. The scenarios cover:
+and month, the governing ALR is chosen within the earliest performance year
+whose files cover that month: the file ranked last in initial, Q1, Q2, Q3, Q4,
+benchmark (the benchmark governs every month it covers), and a later T-stamp
+of the same period wins. A beneficiary the governing file does not list is
+not enrolled for that month. The scenarios cover:
 
 - a later quarterly ALR superseding earlier ones (A01) and the month
   precedence between initial, benchmark and quarterly files (A02, A03);
