@@ -13,6 +13,19 @@ The Medicare ALR Connector is a dbt package that maps raw Medicare Shared Saving
 Install it as a package in your own dbt project, as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) does. It brings in the Medicare CCLF Connector (pinned to a commit) and, through it, the Tuva Project.
 <br/><br/>  
 
+## 🩺 Attributed practice and provider
+
+`provider_attribution` gives each beneficiary-month a practice (TIN) and a provider (NPI) from the ALR file that governs that month:
+
+- **Practice:** the ACO participant TIN with the most primary care services in Table 1-2 (`B_EM_LINE_CNT_T`).
+- **Provider:** under that TIN, the individual NPI with the most primary care services in Table 1-4 (`PCS_COUNT`). An NPI with more services under a different TIN is not used.
+- A beneficiary with no Table 1-2 or 1-4 rows has a NULL practice and provider. The ALR User's Guide, sections 1.2 and 1.4, says this happens for beneficiaries seen only at a CCN (FQHC, RHC, Method II CAH, ETA hospital) or assigned only through voluntary alignment.
+
+These rules are our choice. CMS assigns a beneficiary to an ACO, not to a TIN or an NPI inside it, so the spec doesn't pick one.
+
+Before v0.1.0, both columns were NULL for every beneficiary on DuckDB, because the TIN and NPI ranking dropped any row with a blank column such as `BENE_HIC_NUM` (TUVA-112). Snowflake was unaffected.
+<br/><br/>
+
 ## 🔌 Database Support
 
 - DuckDB
