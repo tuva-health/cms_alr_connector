@@ -73,6 +73,8 @@ A file covers the twelve months its `EnrollFlag1`..`EnrollFlag12` map onto, coun
 
 The CMS ALR documentation doesn't say how overlapping reports combine, so this rule is our choice. It replaces an earlier one that picked the earliest file per beneficiary, which kept such beneficiaries enrolled from a superseded file and, after an MBI change, could enroll the same person twice in a month. The governing file for each month is in the `aalr_governing_file` model.
 
+The Table 1-5 turnover reasons (`plur_r05` .. `nofnd_r06`) in `aalr_history_filtered` come from the governing file's own Table 1-5, so they describe the beneficiary's status in that file. A beneficiary who dropped out in one quarter and is assigned again in the governing file carries no reason for those months. `aalr_history` still carries the performance year's latest reason on every row.
+
 #### Risk scores:
 CMS ships the CMS-HCC risk scores (`bene_rsk_r_scre_01` to `_12`, `esrd_score`, `dis_score`,
 `agdu_score`, `agnd_score` and their `dem_*` counterparts) and the dual-eligible person-years
