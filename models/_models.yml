@@ -32,7 +32,9 @@ models:
       The ALR that governs each enrollment month, one row per ACO and month: of
       the delivered files whose EnrollFlag1..12 cover the month, the earliest
       performance year, then the lowest mssp_file_parameters priority (benchmark
-      last), then the latest T-stamp. Join any ALR table to it on (aco_id,
+      last within its performance year), then the latest T-stamp. Benchmark ALRs
+      ship with the following performance year, so one governs only months no
+      earlier performance year's file covers. Join any ALR table to it on (aco_id,
       performance_year, file_period, t_stamp) to read that table from the
       governing file.
     config:

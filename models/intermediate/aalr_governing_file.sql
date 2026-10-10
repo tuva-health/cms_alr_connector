@@ -10,9 +10,16 @@
          initial < Q1 < Q2 < Q3 < Q4 < benchmark;
       3. on a redelivery of the same period, the later T-stamp.
 
+    Benchmark ALRs ship with the following performance year (PY2025 delivers
+    Y2022..Y2024), so a benchmark governs only months no file from an earlier
+    performance year covers; it is last only within its own performance year.
+
     The governing file alone decides a beneficiary's status for the month: a
     beneficiary it does not list is not enrolled that month, whatever other
-    files say.
+    files say. It supplies all of the month's ALR-sourced fields (enrollment,
+    risk scores and HCC flags, demographics, TIN/NPI attribution, Tables 1-6
+    and 1-9). CCLF's data_sharing_flag comes from CCLF8 in
+    medicare_cclf_connector and does not depend on it.
 
     One row per (aco_id, enroll_month). To take any ALR table from the
     governing file, join on (aco_id, performance_year, file_period, t_stamp),

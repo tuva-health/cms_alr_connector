@@ -83,8 +83,12 @@ The fourth part is the report type (`QALR` or `AALR`) and the fifth the report p
 Several ALRs cover the same months: the quarterly ALRs of a performance year overlap each other, the benchmark ALRs overlap the quarterlies, and the next performance year's reports overlap the current one. For each month the connector picks **one governing file** per ACO, and that file alone decides who is enrolled:
 
 1. Take the **earliest performance year** with a file that covers the month. A closed performance year is final, so a later year's reports never rewrite it.
-2. Within that year, take the **last file in the order initial < Q1 < Q2 < Q3 < Q4 < benchmark** (the `priority` column of `mssp_file_parameters`). The benchmark ALR is the final word on every month it covers.
+2. Within that year, take the **last file in the order initial < Q1 < Q2 < Q3 < Q4 < benchmark** (the `priority` column of `mssp_file_parameters`). The benchmark ALR is last only within its own performance year.
 3. If the same period was delivered more than once, the **later T-stamp** wins.
+
+Benchmark ALRs ship with the *following* performance year: PY2025 delivers Y2022..Y2024. Once an earlier performance year's own files cover a calendar year (PY2024 Q4 covers 2024), a later year's benchmark never governs those months. A benchmark governs only months that no file from an earlier performance year covers.
+
+The governing file supplies all of the month's ALR-sourced fields: enrollment status, risk scores and HCC flags, demographics, TIN/NPI attribution, and the Table 1-6 and 1-9 fields. CCLF's `data_sharing_flag` is separate: it comes from the CCLF8 demographics in `medicare_cclf_connector`, so the choice of ALR doesn't affect it.
 
 A file covers the twelve months its `EnrollFlag1`..`EnrollFlag12` map onto, counted from the file's `period_start_date` in `mssp_file_parameters`. **A beneficiary the governing file does not list is not enrolled for that month**, even if an earlier or later file lists them. For example, a beneficiary dropped from 2025Q3 is not enrolled in any 2025Q3 month, and one removed in a redelivery is not enrolled in the months it governs.
 
