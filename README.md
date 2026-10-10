@@ -64,12 +64,24 @@ The fourth part is the report type (`QALR` or `AALR`) and the fifth the report p
 
 #### Risk scores:
 CMS ships the CMS-HCC risk scores (`bene_rsk_r_scre_01` to `_12`, `esrd_score`, `dis_score`,
-`agdu_score`, `agnd_score` and their `dem_*` counterparts) and the dual-eligible person-years
-fraction `bene_psnyrs_dual` with more than two decimals. The connector keeps those decimals: the
-`cast_score` macro types these columns as `numeric(38,10)`, on the staging model and all the way
-through to `enrollment`. Counts and dollar amounts keep the `numeric(38,2)` of `cast_numeric`.
+`agdu_score`, `agnd_score` and their `dem_*` counterparts) and the person-years fractions
+(`bene_psnyrs_dual` in Table 1-1, `bene_psnyrs` and `bene_psnyrs_lis_dual` in Table 1-9) with up to
+14 decimals. The connector keeps every one of those digits: the `cast_score` macro types these
+columns as `numeric(38,14)`, on the staging models and all the way through to `enrollment` and
+`aalr_history_filtered`. The Table 1-9 person-years are fractions of a year (for example 0.75 for 9
+eligible months), not whole years. Counts and dollar amounts keep the `numeric(38,2)` of `cast_numeric`.
 Land the score columns as text or as a numeric type with at least the decimals CMS publishes; a
 source table that rounds them cannot be repaired here.
+
+#### Birth and death dates:
+CMS ships `BENE_BRTH_DT` and `BENE_DEATH_DT` in Tables 1-1, 1-2 and 1-4 to 1-6 as 10-character
+`MM/DD/YYYY` text. The ALR data dictionary says "mm-dd-yyyy", but in a full set of real quarterly and
+annual ALR deliveries (27 tables) every filled birth and death date had the shape `99/99/9999`: no
+hyphenated or ISO values. The connector parses them with that format on every supported warehouse,
+so `bene_birth_date` and `bene_death_date` in `enrollment` are populated on DuckDB as well as
+Snowflake; before, a plain cast left them NULL on DuckDB. Land these columns as text
+exactly as CMS sends them. A value in any other format, such as an ISO `YYYY-MM-DD` date, reads as
+NULL (our choice: the format is fixed by CMS, and guessing would accept day/month swaps silently).
 <br/><br/>
 
 ### Step 3: Configure your project

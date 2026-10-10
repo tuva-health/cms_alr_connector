@@ -87,6 +87,11 @@ until the bug is fixed, e.g. `--select tag:tuva-110`. Every fixture test
 carries the `fixture` tag and depends on both final models, so a failing test
 never skips `enrollment` or `provider_attribution`.
 
+`tests/mssp_file_parameters_periods.sql` checks the connector's
+`mssp_file_parameters` seed itself: every row covers 12 whole months and each
+benchmark row covers calendar `report_year`. No fixture delivers every period
+in the seed, so this is what guards the periods the fixtures don't reach.
+
 ## Local runs
 
 From the repo root, `scripts/dbt-local` runs dbt with the uv-locked toolchain

@@ -68,7 +68,7 @@ unit_tests:
   - name: stg_aalr1_keeps_cms_score_precision
     description: >
       The CMS-HCC risk scores and the dual-eligible person-years fraction keep
-      the decimals CMS ships. The expected output is written as SQL on purpose:
+      all 14 decimals CMS ships. The expected output is written as SQL on purpose:
       a dict-format expectation is cast to the model's actual column type before
       comparison, so it would pass even when the model truncates to two decimals.
     model: stg_aalr1_assigned_beneficiaries
@@ -78,27 +78,27 @@ unit_tests:
         # name its concat() yields '20' on some adapters and null on others.
         rows:
           - file_name: 'P.A0001.ACO.AALR.2023Q4.D231001.T0000000_1-1.csv'
-            bene_rsk_r_scre_01: '1.0134567891'
-            bene_rsk_r_scre_02: '1.0234567891'
-            bene_rsk_r_scre_03: '1.0334567891'
-            bene_rsk_r_scre_04: '1.0434567891'
-            bene_rsk_r_scre_05: '1.0534567891'
-            bene_rsk_r_scre_06: '1.0634567891'
-            bene_rsk_r_scre_07: '1.0734567891'
-            bene_rsk_r_scre_08: '1.0834567891'
-            bene_rsk_r_scre_09: '1.0934567891'
-            bene_rsk_r_scre_10: '1.1034567891'
-            bene_rsk_r_scre_11: '1.1134567891'
-            bene_rsk_r_scre_12: '1.1234567891'
-            esrd_score: '2.345'
-            dis_score: '0.987654321'
-            agdu_score: '1.2345678901'
+            bene_rsk_r_scre_01: '1.01345678901234'
+            bene_rsk_r_scre_02: '1.02345678901234'
+            bene_rsk_r_scre_03: '1.03345678901234'
+            bene_rsk_r_scre_04: '1.04345678901234'
+            bene_rsk_r_scre_05: '1.05345678901234'
+            bene_rsk_r_scre_06: '1.06345678901234'
+            bene_rsk_r_scre_07: '1.07345678901234'
+            bene_rsk_r_scre_08: '1.08345678901234'
+            bene_rsk_r_scre_09: '1.09345678901234'
+            bene_rsk_r_scre_10: '1.10345678901234'
+            bene_rsk_r_scre_11: '1.11345678901234'
+            bene_rsk_r_scre_12: '1.12345678901234'
+            esrd_score: '2.34567890123456'
+            dis_score: '0.98765432109876'
+            agdu_score: '1.23456789012345'
             agnd_score: '0.5'
-            dem_esrd_score: '1.001'
-            dem_dis_score: '0.4444444444'
+            dem_esrd_score: '1.00100000000001'
+            dem_dis_score: '0.44444444444444'
             dem_agdu_score: '1.1'
-            dem_agnd_score: '0.9999999999'
-            bene_psnyrs_dual: '0.4166666667'
+            dem_agnd_score: '0.99999999999999'
+            bene_psnyrs_dual: '0.41666666666667'
     expect:
       format: sql
       # The numeric literals carry an exponent on purpose. A plain decimal
@@ -121,17 +121,17 @@ unit_tests:
           null as {{ column }},
         {%- endfor %}
         {%- for i in range(1, 13) %}
-          1.{{ '%02d' % i }}34567891e0 as bene_rsk_r_scre_{{ '%02d' % i }},
+          1.{{ '%02d' % i }}345678901234e0 as bene_rsk_r_scre_{{ '%02d' % i }},
         {%- endfor %}
-          2.345e0 as esrd_score,
-          0.987654321e0 as dis_score,
-          1.2345678901e0 as agdu_score,
+          2.34567890123456e0 as esrd_score,
+          0.98765432109876e0 as dis_score,
+          1.23456789012345e0 as agdu_score,
           0.5e0 as agnd_score,
-          1.001e0 as dem_esrd_score,
-          0.4444444444e0 as dem_dis_score,
+          1.00100000000001e0 as dem_esrd_score,
+          0.44444444444444e0 as dem_dis_score,
           1.1e0 as dem_agdu_score,
-          0.9999999999e0 as dem_agnd_score,
-          0.4166666667e0 as bene_psnyrs_dual,
+          0.99999999999999e0 as dem_agnd_score,
+          0.41666666666667e0 as bene_psnyrs_dual,
           'P.A0001.ACO.AALR.2023Q4.D231001.T0000000_1-1.csv' as file_name,
           'AALR' as file_type,
           '2023Q4' as file_period,

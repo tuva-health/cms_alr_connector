@@ -4,6 +4,11 @@
     then runs a try to cast macro based on the adapter type. Returns NULL
     casted as date if the try to cast fails.
 
+    A plain try_cast only reads ISO dates on DuckDB, so DuckDB, like Postgres
+    and Redshift, parses 'MM/DD/YYYY' (the format CMS uses for BENE_BRTH_DT
+    and BENE_DEATH_DT in the ALR) explicitly. Snowflake does too, rather than
+    depend on the session's DATE_INPUT_FORMAT.
+
 #}
 
 {%- macro try_to_cast_date(column_name, date_format='YYYY-MM-DD') -%}
@@ -88,14 +93,22 @@
 
 {%- macro snowflake__try_to_cast_date(column_name, date_format) -%}
 
+    {%- if date_format == 'MM/DD/YYYY' -%}
+    try_to_date( {{ column_name }}, 'MM/DD/YYYY' )
+    {%- else -%}
     try_cast( {{ column_name }} as date )
+    {%- endif -%}
 
 {%- endmacro -%}
 
 {%- macro duckdb__try_to_cast_date(column_name, date_format) -%}
 
+    {%- if date_format == 'MM/DD/YYYY' -%}
+    cast( try_strptime( {{ column_name }}, '%m/%d/%Y' ) as date )
+    {%- else -%}
     try_cast( {{ column_name }} as date )
-    
+    {%- endif -%}
+
 {%- endmacro -%}
 
 {%- macro default__try_to_cast_date(column_name, date_format) -%}
