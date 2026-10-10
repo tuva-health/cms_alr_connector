@@ -64,10 +64,12 @@ The fourth part is the report type (`QALR` or `AALR`) and the fifth the report p
 
 #### Risk scores:
 CMS ships the CMS-HCC risk scores (`bene_rsk_r_scre_01` to `_12`, `esrd_score`, `dis_score`,
-`agdu_score`, `agnd_score` and their `dem_*` counterparts) and the dual-eligible person-years
-fraction `bene_psnyrs_dual` with more than two decimals. The connector keeps those decimals: the
-`cast_score` macro types these columns as `numeric(38,10)`, on the staging model and all the way
-through to `enrollment`. Counts and dollar amounts keep the `numeric(38,2)` of `cast_numeric`.
+`agdu_score`, `agnd_score` and their `dem_*` counterparts) and the person-years fractions
+(`bene_psnyrs_dual` in Table 1-1, `bene_psnyrs` and `bene_psnyrs_lis_dual` in Table 1-9) with up to
+14 decimals. The connector keeps every one of those digits: the `cast_score` macro types these
+columns as `numeric(38,14)`, on the staging models and all the way through to `enrollment` and
+`aalr_history_filtered`. The Table 1-9 person-years are fractions of a year (for example 0.75 for 9
+eligible months), not whole years. Counts and dollar amounts keep the `numeric(38,2)` of `cast_numeric`.
 Land the score columns as text or as a numeric type with at least the decimals CMS publishes; a
 source table that rounds them cannot be repaired here.
 
