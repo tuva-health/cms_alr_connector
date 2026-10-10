@@ -57,7 +57,8 @@ models:
     description: >
       One row per beneficiary and enrollment month, from the ALR that governs
       the month (aalr_governing_file). A beneficiary the governing file does not
-      list has no row for that month.
+      list has no row for that month. The Table 1-5 reason flags come from the
+      governing file's Table 1-5, so a beneficiary assigned in it carries none.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
