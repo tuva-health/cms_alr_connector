@@ -16,10 +16,16 @@ models:
 
 ### intermediate
   - name: aalr_history
-    description: Combined table of all historical assignment list reports, pivoted to have one row per beneficiary per month
+    description: >
+      Combined table of all historical assignment list reports, pivoted to one
+      row per beneficiary, month and Table 1-1 file. Tables 1-2, 1-4, 1-6 and
+      1-9 are joined from the same delivery as the Table 1-1 row.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [bene_mbi_id, enroll_month, file_name]
 
   - name: aalr_governing_file
     description: >
