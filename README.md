@@ -75,9 +75,11 @@ source table that rounds them cannot be repaired here.
 
 #### Birth and death dates:
 CMS ships `BENE_BRTH_DT` and `BENE_DEATH_DT` in Tables 1-1, 1-2 and 1-4 to 1-6 as 10-character
-`MM/DD/YYYY` text (ALR data dictionary). The connector parses them with that format on every
-supported warehouse, so `bene_birth_date` and `bene_death_date` in `enrollment` are populated on
-DuckDB as well as Snowflake; before, a plain cast left them NULL on DuckDB. Land these columns as text
+`MM/DD/YYYY` text. The ALR data dictionary says "mm-dd-yyyy", but in a full set of real quarterly and
+annual ALR deliveries (27 tables) every filled birth and death date had the shape `99/99/9999`: no
+hyphenated or ISO values. The connector parses them with that format on every supported warehouse,
+so `bene_birth_date` and `bene_death_date` in `enrollment` are populated on DuckDB as well as
+Snowflake; before, a plain cast left them NULL on DuckDB. Land these columns as text
 exactly as CMS sends them. A value in any other format, such as an ISO `YYYY-MM-DD` date, reads as
 NULL (our choice: the format is fixed by CMS, and guessing would accept day/month swaps silently).
 <br/><br/>
