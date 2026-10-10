@@ -126,23 +126,38 @@ add_calculated_month AS (
     mfp.period_start_date,
     mfp.period_end_date,
     mfp.priority,
-    mfp.file_type as alr_file_type
+    mfp.file_type as alr_file_type,
+    {{ dbt.split_part('aalr.file_name', "'.'", 2) }} AS aco_id,
+    {{ dbt.split_part('aalr.ITERATION', "'_'", 1) }} AS t_stamp
   FROM aalr_exploded_by_enrollflag as aalr
   LEFT JOIN {{ ref('mssp_file_parameters') }} as mfp ON aalr.PERFORMANCE_YEAR = mfp.PERFORMANCE_YEAR AND aalr.file_period = mfp.file_period
 ),
 
 -- Rank each beneficiary's TINs (MASTER_ID) by E&M line count, and each TIN's
--- NPIs by PCS count. A plain row_number() + rn = 1, not dbt_utils.deduplicate:
--- its default implementation (used on DuckDB) re-joins the ranked rows with a
--- NATURAL JOIN on every column, and NULL = NULL never matches, so every row
--- with a blank column (BENE_HIC_NUM, BENE_DEATH_DT) dropped out (TUVA-112).
--- Ties on the count are broken arbitrarily; see TUVA-108.
+-- NPIs by PCS count, within one delivery: (aco_id, performance year, file
+-- period, t_stamp), where t_stamp is ITERATION without its _1-<table> suffix,
+-- as in aalr_governing_file (TUVA-108).
+-- A plain row_number() + rn = 1, not dbt_utils.deduplicate: its default
+-- implementation (used on DuckDB) re-joins the ranked rows with a NATURAL
+-- JOIN on every column, and NULL = NULL never matches, so every row with a
+-- blank column (BENE_HIC_NUM, BENE_DEATH_DT) dropped out (TUVA-112).
+-- Ties on the count go to the lowest MASTER_ID / NPI_USED (our choice: CMS
+-- breaks them on the most recent primary care service date, which the ALR
+-- does not carry). NULLS LAST is explicit because Snowflake sorts NULLs first
+-- on DESC and DuckDB last.
 ranked_tin AS (
   SELECT
     tin.*,
+    {{ dbt.split_part('tin.file_name', "'.'", 2) }} AS aco_id,
+    {{ dbt.split_part('tin.ITERATION', "'_'", 1) }} AS t_stamp,
     row_number() OVER (
-      PARTITION BY tin.BENE_MBI_ID, tin.file_period, tin.PERFORMANCE_YEAR, tin.ITERATION
-      ORDER BY tin.B_EM_LINE_CNT_T DESC
+      PARTITION BY
+        tin.BENE_MBI_ID,
+        {{ dbt.split_part('tin.file_name', "'.'", 2) }},
+        tin.PERFORMANCE_YEAR,
+        tin.file_period,
+        {{ dbt.split_part('tin.ITERATION', "'_'", 1) }}
+      ORDER BY tin.B_EM_LINE_CNT_T DESC NULLS LAST, tin.MASTER_ID ASC NULLS LAST
     ) AS rn
   FROM {{ ref('stg_aalr2_assigned_beneficiaries_tin') }} AS tin
 ),
@@ -155,9 +170,17 @@ top_tin AS (
 ranked_npi AS (
   SELECT
     npi.*,
+    {{ dbt.split_part('npi.file_name', "'.'", 2) }} AS aco_id,
+    {{ dbt.split_part('npi.ITERATION', "'_'", 1) }} AS t_stamp,
     row_number() OVER (
-      PARTITION BY npi.BENE_MBI_ID, npi.file_period, npi.PERFORMANCE_YEAR, npi.ITERATION, npi.MASTER_ID
-      ORDER BY npi.PCS_COUNT DESC
+      PARTITION BY
+        npi.BENE_MBI_ID,
+        {{ dbt.split_part('npi.file_name', "'.'", 2) }},
+        npi.PERFORMANCE_YEAR,
+        npi.file_period,
+        {{ dbt.split_part('npi.ITERATION', "'_'", 1) }},
+        npi.MASTER_ID
+      ORDER BY npi.PCS_COUNT DESC NULLS LAST, npi.NPI_USED ASC NULLS LAST
     ) AS rn
   FROM {{ ref('stg_aalr4_assigned_beneficiaries_tin_npi') }} AS npi
 ),
@@ -290,18 +313,24 @@ SELECT
   lbt.mdm_r04,
   lbt.nofnd_r06
 FROM add_calculated_month as acm
+-- TIN and NPI come from the same delivery as the Table 1-1 row (TUVA-108), so
+-- each row gets at most one of each, and in aalr_history_filtered they come
+-- from the delivery that governs the month. A delivery without 1-2 / 1-4 rows
+-- for the beneficiary leaves them NULL, even when an earlier one had them.
 LEFT JOIN top_tin as tt
   ON acm.BENE_MBI_ID = tt.BENE_MBI_ID
-  AND acm.FILE_PERIOD = tt.FILE_PERIOD
+  AND acm.aco_id = tt.aco_id
   AND acm.PERFORMANCE_YEAR = tt.PERFORMANCE_YEAR
-  -- AND acm.ITERATION = tt.ITERATION -- Normalize iterations to not include file types, then add back in
+  AND acm.FILE_PERIOD = tt.FILE_PERIOD
+  AND acm.t_stamp = tt.t_stamp
 LEFT JOIN top_npi AS tn
   ON acm.BENE_MBI_ID = tn.BENE_MBI_ID
   -- Only grab NPIs from the top TIN (it's possible an individual NPI NOT assigned to the top TIN has the most visits)
   AND tt.MASTER_ID = tn.MASTER_ID
-  AND acm.FILE_PERIOD = tn.FILE_PERIOD
+  AND acm.aco_id = tn.aco_id
   AND acm.PERFORMANCE_YEAR = tn.PERFORMANCE_YEAR
-  -- AND acm.ITERATION = tn.ITERATION -- Normalize iterations to not include file types, then add back in
+  AND acm.FILE_PERIOD = tn.FILE_PERIOD
+  AND acm.t_stamp = tn.t_stamp
 LEFT JOIN {{ ref('stg_aalr6_beneficiaries_assignable_or_voluntary') }} as baov
   ON acm.BENE_MBI_ID = baov.BENE_MBI_ID
   AND acm.FILE_PERIOD = baov.FILE_PERIOD
