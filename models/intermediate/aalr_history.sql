@@ -131,26 +131,40 @@ add_calculated_month AS (
   LEFT JOIN {{ ref('mssp_file_parameters') }} as mfp ON aalr.PERFORMANCE_YEAR = mfp.PERFORMANCE_YEAR AND aalr.file_period = mfp.file_period
 ),
 
+-- Rank each beneficiary's TINs (MASTER_ID) by E&M line count, and each TIN's
+-- NPIs by PCS count. A plain row_number() + rn = 1, not dbt_utils.deduplicate:
+-- its default implementation (used on DuckDB) re-joins the ranked rows with a
+-- NATURAL JOIN on every column, and NULL = NULL never matches, so every row
+-- with a blank column (BENE_HIC_NUM, BENE_DEATH_DT) dropped out (TUVA-112).
+-- Ties on the count are broken arbitrarily; see TUVA-108.
+ranked_tin AS (
+  SELECT
+    tin.*,
+    row_number() OVER (
+      PARTITION BY tin.BENE_MBI_ID, tin.file_period, tin.PERFORMANCE_YEAR, tin.ITERATION
+      ORDER BY tin.B_EM_LINE_CNT_T DESC
+    ) AS rn
+  FROM {{ ref('stg_aalr2_assigned_beneficiaries_tin') }} AS tin
+),
+
 -- Filter to only the top MASTER_ID (TIN) based on EM counts
 top_tin AS (
-  {{
-    dbt_utils.deduplicate(
-      relation=ref('stg_aalr2_assigned_beneficiaries_tin'),
-      partition_by='BENE_MBI_ID, file_period, PERFORMANCE_YEAR, ITERATION',
-      order_by='B_EM_LINE_CNT_T desc'
-    )
-  }}
+  SELECT * FROM ranked_tin WHERE rn = 1
+),
+
+ranked_npi AS (
+  SELECT
+    npi.*,
+    row_number() OVER (
+      PARTITION BY npi.BENE_MBI_ID, npi.file_period, npi.PERFORMANCE_YEAR, npi.ITERATION, npi.MASTER_ID
+      ORDER BY npi.PCS_COUNT DESC
+    ) AS rn
+  FROM {{ ref('stg_aalr4_assigned_beneficiaries_tin_npi') }} AS npi
 ),
 
 -- Filter to only the top NPI for each Master_ID (TIN) based on PCS counts
 top_npi AS (
-  {{
-    dbt_utils.deduplicate(
-      relation=ref('stg_aalr4_assigned_beneficiaries_tin_npi'),
-      partition_by='BENE_MBI_ID, file_period, PERFORMANCE_YEAR, ITERATION, MASTER_ID',
-      order_by='PCS_COUNT desc'
-    )
-  }}
+  SELECT * FROM ranked_npi WHERE rn = 1
 ),
 
 -- Get latest beneficiary turnover reason for the year (if a member leaves, comes back, and leaves again, we'll get the latest)
