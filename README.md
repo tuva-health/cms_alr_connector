@@ -62,6 +62,17 @@ The field `file_name` is used throughout this connector to determine the perform
 
 The fourth part is the report type (`QALR` or `AALR`) and the fifth the report period (`<PY>Q<n>` or `Y<yyyy>`). The two digits after `D` in the sixth part give the performance year (`D25…` is PY 2025). A name with no period part, `P.A<ACO>.ACO.AALR.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, is read as the initial assignment for PY 20YY. The performance year and period are joined to the `mssp_file_parameters` seed, whose `priority` picks the file that wins: lower is preferred.
 
+#### Which file decides each month:
+Several ALRs cover the same months: the quarterly ALRs of a performance year overlap each other, the benchmark ALRs overlap the quarterlies, and the next performance year's reports overlap the current one. For each month the connector picks **one governing file** per ACO, and that file alone decides who is enrolled:
+
+1. Take the **earliest performance year** with a file that covers the month. A closed performance year is final, so a later year's reports never rewrite it.
+2. Within that year, take the **last file in the order initial < Q1 < Q2 < Q3 < Q4 < benchmark** (the `priority` column of `mssp_file_parameters`). The benchmark ALR is the final word on every month it covers.
+3. If the same period was delivered more than once, the **later T-stamp** wins.
+
+A file covers the twelve months its `EnrollFlag1`..`EnrollFlag12` map onto, counted from the file's `period_start_date` in `mssp_file_parameters`. **A beneficiary the governing file does not list is not enrolled for that month**, even if an earlier or later file lists them. For example, a beneficiary dropped from 2025Q3 is not enrolled in any 2025Q3 month, and one removed in a redelivery is not enrolled in the months it governs.
+
+The CMS ALR documentation doesn't say how overlapping reports combine, so this rule is our choice. It replaces an earlier one that picked the earliest file per beneficiary, which kept such beneficiaries enrolled from a superseded file and, after an MBI change, could enroll the same person twice in a month. The governing file for each month is in the `aalr_governing_file` model.
+
 #### Risk scores:
 CMS ships the CMS-HCC risk scores (`bene_rsk_r_scre_01` to `_12`, `esrd_score`, `dis_score`,
 `agdu_score`, `agnd_score` and their `dem_*` counterparts) and the dual-eligible person-years

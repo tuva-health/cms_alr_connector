@@ -1,16 +1,14 @@
--- Find the latest file (by minimum priority) that was received for each enroll_month for each performance_year
-WITH latest_priority AS (
-  SELECT
-    performance_year,
-    enroll_month,
-    MIN(priority) as min_priority
-  FROM {{ ref('aalr_history')}}
-  GROUP BY
-    performance_year,
-    enroll_month
-)
+/*
+    One row per beneficiary and enrollment month, taken from the ALR that
+    governs the month (aalr_governing_file, TUVA-110). A beneficiary the
+    governing file does not list has no row for that month, even when an
+    earlier or later file lists them.
 
--- Get latest priority of record based on row_number, and only keep records that were received on latest file for that report period
+    Within the governing file, row_number = 1 keeps one row per beneficiary
+    and month. aalr_history ranks each beneficiary's rows by (performance
+    year, priority, ITERATION desc), and the governing file is by construction
+    the first of those that covers the month, so its rows rank 1.
+*/
 SELECT
   ap.row_number,
   ap.enroll_month,
@@ -81,6 +79,7 @@ SELECT
   ap.mdm_r04,
   ap.nofnd_r06
 FROM {{ ref('aalr_history')}} as ap
-LEFT JOIN latest_priority as lp ON ap.enroll_month = lp.enroll_month AND ap.performance_year = lp.performance_year
-WHERE row_number = 1
-  AND ap.priority = lp.min_priority
+INNER JOIN {{ ref('aalr_governing_file') }} as gf
+  ON ap.file_name = gf.file_name
+  AND ap.enroll_month = gf.enroll_month
+WHERE ap.row_number = 1
