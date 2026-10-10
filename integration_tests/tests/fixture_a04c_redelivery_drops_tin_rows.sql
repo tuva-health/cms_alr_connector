@@ -13,6 +13,9 @@
     The redelivery governs 2025-01..09, so provider_attribution has no
     attributed practice or provider for those months. The TIN and NPI of the
     superseded delivery must not attach to the redelivered rows.
+
+    Masked on DuckDB until TUVA-112 is fixed: attribution is NULL for every
+    beneficiary there, so this test passes for the wrong reason.
 */
 
 select

@@ -11,8 +11,8 @@
     is the T0310000 redelivery).
 
     No enrollment from 2025-01 on (2025Q3 governs those months and does not
-    list it), and its aalr_history rows carry plur_r05 = 1. Its 2024 months
-    are asserted by fixture_month_precedence (TUVA-110).
+    list it), and its aalr_history rows carry plur_r05 = 1. Its 2023-2024
+    months are asserted by fixture_month_precedence.
 */
 
 select

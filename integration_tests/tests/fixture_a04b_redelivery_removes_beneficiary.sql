@@ -1,4 +1,4 @@
-{{ config(tags=['fixture', 'tuva-108']) }}
+{{ config(tags=['fixture', 'tuva-110']) }}
 
 -- Depend on both final models so this test runs after them: a failing
 -- fixture test then never skips enrollment or provider_attribution.
@@ -6,12 +6,14 @@
 -- depends_on: {{ ref('provider_attribution') }}
 
 /*
-    Fixture scenario A04b (TUVA-108): 9TT0FK2XX04 is listed in 2025Q3
+    Fixture scenario A04b (TUVA-110): 9TT0FK2XX04 is listed in 2025Q3
     T0300000 but not in the T0310000 redelivery of the same period, which
     lists it in Table 1-5 instead.
 
-    The redelivered file replaces the original as a whole, so the beneficiary
-    has no enrollment in 2025-01..09.
+    The redelivered file replaces the original as a whole: it governs
+    2025-01..09, and a beneficiary it does not list is not enrolled in those
+    months. Today precedence is picked per MBI, so the T0300000 rows still win
+    for this beneficiary.
 */
 
 select

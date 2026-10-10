@@ -12,8 +12,8 @@
     which mssp_file_parameters maps to the initial window 2023-10..2024-09.
 
     9TT0FK2XX10 is listed only there (and in 2025Q1's Table 1-5). It is
-    enrolled exactly 2023-10..12: later-received PY2025 files govern
-    2024-01..09 and do not list it.
+    enrolled exactly 2023-10..12: AALR.Y2024 (the benchmark, which governs
+    every month it covers) governs 2024 and does not list it.
 */
 
 {{ fixture_enrollment_months_diff('A11', '9TT0FK2XX10', [('2023-10-01', '2023-12-01')]) }}
