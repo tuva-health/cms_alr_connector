@@ -47,11 +47,13 @@ vars:
   # never share schemas.
   # tuva_schema_prefix: dev_mike
 
-  ## Demo data (deprecated)
-  # True disables the ALR and CCLF sources and makes medicare_cclf_connector
-  # read its bundled header-only seeds instead. medicare_cclf_connector
-  # defaults it to true inside its own package, so this must stay false for the
-  # connectors to read source(). Integration tests always exercise source().
+  ## Demo data (medicare_cclf_connector 603a258 only)
+  # This connector no longer reads demo_data_only. The medicare_cclf_connector
+  # revision it pins still does, and defaults it to true inside its own
+  # package: true disables the CCLF sources and reads its bundled header-only
+  # seeds instead. Keep it false so the CCLF connector reads source(), as a
+  # client project must; drop it when the pin moves to a CCLF release without
+  # the var (TUVA-105).
   demo_data_only: false
 
 model-paths: ["models"]
