@@ -1,8 +1,14 @@
 
 name: 'cms_aalr_connector'
-version: '0.1.0'
+version: '1.0.0'
 
 profile: 'default'
+
+flags:
+  # Tuva Core 1.0 resolves refs inside a package before the root project.
+  # dbt reads flags only from the root project, so a project that installs
+  # this connector must set it too (see the README).
+  require_ref_searches_node_package_before_root: true
 
 vars:
   input_database: tuva
