@@ -3,7 +3,12 @@ version: 1
 models:
 ### final
   - name: provider_attribution
-    description: Provider attribution table mapping ALR top NPI and TIN to Tuva input layer format
+    description: >
+      Provider attribution table mapping ALR top NPI and TIN to the Tuva Core
+      1.0 input layer format (input_layer__provider_attribution), one row per
+      beneficiary and enrolled month, from the governing ALR. file_name is that
+      ALR's Table 1-1 file and ingest_datetime its period end, the same value
+      `enrollment` publishes as file_date.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}

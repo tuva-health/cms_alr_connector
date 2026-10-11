@@ -35,6 +35,8 @@ with beneficiary_xref as (
         , ahf.enroll_month
         , ahf.top_npi
         , ahf.top_tin
+        , ahf.file_name
+        , ahf.period_end_date
         , row_number() over (
             partition by
                   coalesce(beneficiary_xref.crnt_num, ahf.bene_mbi_id)
@@ -69,6 +71,11 @@ SELECT
   , cast(null as {{ dbt.type_string() }}) as custom_attributed_provider_practice
   , cast(null as {{ dbt.type_string() }}) as custom_attributed_provider_organization
   , cast(null as {{ dbt.type_string() }}) as custom_attributed_provider_lob
+  -- Tuva Core 1.0 provider_attribution contract columns. The governing ALR's
+  -- Table 1-1 file, and its period end as the load date, the same value
+  -- `enrollment` publishes as file_date (medicare_cclf_connector's ingest_datetime).
+  , cast(file_name as {{ dbt.type_string() }}) as file_name
+  , cast(period_end_date as {{ dbt.type_timestamp() }}) as ingest_datetime
   , cast(null as {{ dbt.type_string() }}) as tuva_last_run
 FROM attribution
 WHERE person_month_rank = 1
