@@ -122,9 +122,9 @@ env:
   # out. Nothing in this connector depends on medicare_cclf_connector, so
   # connector scope builds no CCLF models.
   # full: every installed package (this connector, medicare_cclf_connector,
-  # the_tuva_project and its dependencies), as a client project builds it. The
-  # Tuva data-quality models need elementary's tables, so it cannot be
-  # narrowed to the connectors and package:the_tuva_project.
+  # Tuva Core and its dependencies), as a client project builds it. Tuva Core
+  # reads the connectors' input layer models, so the selector stays fqn:*
+  # rather than package:the_tuva_project alone.
   CONNECTOR_SELECTOR: package:cms_aalr_connector package:integration_tests
   FULL_SELECTOR: fqn:*
 
