@@ -107,7 +107,7 @@ DuckDB profile (`/tmp/cms_alr_connector_ci.duckdb`):
 scripts/dbt-local deps
 scripts/dbt-local seed --full-refresh --select package:integration_tests
 scripts/dbt-local build --full-refresh \
-  --select package:cms_aalr_connector package:integration_tests \
+  --select +package:cms_aalr_connector package:integration_tests \
   --exclude package:integration_tests,resource_type:seed --indirect-selection cautious
 ```
 
@@ -126,7 +126,7 @@ so stacked PRs get the same checks. Pull requests to `main` also run
 | Check | What it runs |
 | --- | --- |
 | `uv lock check` | `uv lock --check`: `uv.lock` is the single toolchain pin. Then `scripts/check_precedence_doc.py`: the `mssp_file_parameters` rows embedded in `docs/alr-month-precedence.html` match `seeds/mssp_file_parameters.csv`. |
-| `dbt build / duckdb` | deps, parse, fixture seeds, connector unit tests, connector build. No secrets; runs on fork PRs too. |
+| `dbt build / duckdb` | deps, parse, fixture seeds, connector unit tests, connector build (with the medicare_cclf_connector crosswalk models `provider_attribution` reads). No secrets; runs on fork PRs too. |
 | `dbt build / snowflake` | Same steps, then builds the connector and every installed package (medicare_cclf_connector, the_tuva_project and its dependencies) downstream. Same-repo PRs only. |
 | `CI / Snowflake` | Commit status on the PR head carrying the Snowflake build's result. Same-repo PRs get it from `ci.yml`; fork PRs only from [External PR CI](#fork-pull-requests). |
 | `release label` | The PR has exactly one release label (see the Releasing section of the root README). |

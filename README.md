@@ -22,12 +22,14 @@ Install it as a package in your own dbt project, as [cms_mssp_connector](https:/
 - **Ties:** a TIN tie on `B_EM_LINE_CNT_T` goes to the lowest `MASTER_ID`, and an NPI tie on `PCS_COUNT` to the lowest `NPI_USED`.
 - **Same delivery:** Tables 1-2 and 1-4 are read only from the delivery that governs the month (see [Which file decides each month](#which-file-decides-each-month)), matched on ACO, performance year, report period and T-stamp. If a redelivery has no Table 1-2 or 1-4 rows for a beneficiary, their practice and provider are NULL for the months it governs, even when the original delivery had them.
 - A beneficiary with no Table 1-2 or 1-4 rows has a NULL practice and provider. The ALR User's Guide, sections 1.2 and 1.4, says this happens for beneficiaries seen only at a CCN (FQHC, RHC, Method II CAH, ETA hospital) or assigned only through voluntary alignment.
+- **Person:** `person_id` (and `member_id`, `patient_id`) is the beneficiary's current MBI, not the MBI the ALR lists. The ALR MBI is mapped through the CCLF9 crosswalk, medicare_cclf_connector's `int_beneficiary_xref_deduped`, with the same join medicare_cclf_connector uses for ALR enrollment: the crosswalk's current MBI where the ALR MBI is a previous one, else the ALR MBI. Attribution therefore sits under the same person as eligibility and joins Tuva's `member_month` after an MBI change. If the governing file lists both a previous and the current MBI for the same month, the row from the file ranked first by the governing-file order is kept, then the row already carrying the current MBI, so each person-month has one row (our choice; the ALR spec doesn't cover it).
 
 These rules are our choice. CMS assigns a beneficiary to an ACO, not to a TIN or an NPI inside it, so the spec doesn't pick one. The tie-break is our choice too: CMS breaks ties on the most recent primary care service date (ALR User's Guide v18 §1.4; Assignment Methodology Specifications §2.3.3), and the ALR doesn't include that date. The lowest ID is arbitrary but gives the same answer on every run and every warehouse.
 
 Before v1.0.0:
 - Both columns were NULL for every beneficiary on DuckDB, because the TIN and NPI ranking dropped any row with a blank column such as `BENE_HIC_NUM` (TUVA-112). Snowflake was unaffected.
 - Ties were broken by whatever order the warehouse returned the rows in, and a redelivered period could pick up the TIN and NPI of the delivery it replaced (TUVA-108).
+- `person_id` was the MBI the ALR lists, with no crosswalk, so after an MBI change the months reported under the previous MBI never joined Tuva's `member_month` (TUVA-121).
 <br/><br/>
 
 ## 🔌 Database Support
