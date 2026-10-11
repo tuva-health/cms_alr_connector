@@ -8,9 +8,9 @@ Check out our [docs](https://thetuvaproject.com/) to learn about the project and
 
 ## 🧰 What does this repo do?
 
-The Medicare ALR Connector is a dbt package that maps raw Medicare Shared Savings Program Assignment List Report (ALR) data to the enrollment input required by the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector). Together they map the input layer required to run the Tuva Project. This connector expects your ALR data to be organized into the tables outlined in this [CMS data dictionary](https://www.cms.gov/media/559411), which is the most recent format CMS uses to distribute ALR files.
+The Medicare ALR Connector is a dbt package that maps raw Medicare Shared Savings Program Assignment List Report (ALR) data to the enrollment input required by the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector). Together they map the input layer required to run Tuva Core. This connector expects your ALR data to be organized into the tables outlined in this [CMS data dictionary](https://www.cms.gov/media/559411), which is the most recent format CMS uses to distribute ALR files.
 
-Install it as a package in your own dbt project, as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) does. It brings in the Medicare CCLF Connector (pinned to a commit) and, through it, the Tuva Project.
+Install it as a package in your own dbt project, as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) does. It brings in the Medicare CCLF Connector (pinned to release `v1.0.0`) and, through it, [Tuva Core](https://github.com/tuva-health/tuva-core) 1.0.0, whose dbt package name is still `the_tuva_project`.
 <br/><br/>  
 
 ## 🩺 Attributed practice and provider
@@ -25,7 +25,7 @@ Install it as a package in your own dbt project, as [cms_mssp_connector](https:/
 
 These rules are our choice. CMS assigns a beneficiary to an ACO, not to a TIN or an NPI inside it, so the spec doesn't pick one. The tie-break is our choice too: CMS breaks ties on the most recent primary care service date (ALR User's Guide v18 §1.4; Assignment Methodology Specifications §2.3.3), and the ALR doesn't include that date. The lowest ID is arbitrary but gives the same answer on every run and every warehouse.
 
-Before v0.1.0:
+Before v1.0.0:
 - Both columns were NULL for every beneficiary on DuckDB, because the TIN and NPI ranking dropped any row with a blank column such as `BENE_HIC_NUM` (TUVA-112). Snowflake was unaffected.
 - Ties were broken by whatever order the warehouse returned the rows in, and a redelivered period could pick up the TIN and NPI of the delivery it replaced (TUVA-108).
 <br/><br/>
@@ -38,16 +38,32 @@ Before v0.1.0:
 These are the warehouses CI builds on every pull request, and the ones the release gate (`CI -- All Warehouses`) builds on before every release (see [integration_tests/README.md](integration_tests/README.md)). Other warehouses may work but are not tested.
 <br/><br/>  
 
+## 📦 Supported versions
+
+| | v1.0.0 |
+|---|---|
+| dbt Core | 1.10.5 or later (Tuva Core's `require-dbt-version` is `>=1.10.5,<3.0.0`). CI runs dbt-core 1.10.20 with dbt-duckdb 1.10.1 and dbt-snowflake 1.10.7, pinned in `uv.lock`. |
+| Medicare CCLF Connector | `v1.0.0`, installed by this package's `packages.yml`. |
+| Tuva Core | 1.0.0 (`tuva-health/tuva-core`, tag `v1.0.0`), installed through the Medicare CCLF Connector. Tuva Project 0.x is not supported. |
+
+v1.0.0 is the first release. Before it, projects pinned an untagged commit, which installed Medicare CCLF Connector 603a258 and the Tuva Project v0.17.2.
+<br/><br/>  
+
 ## ✅ Quickstart Guide
 
 ### Step 1: Install the package
-Add the connector to your project's `packages.yml`, pinned to a commit (or, once releases exist, a tag), and run `dbt deps`:
+Add the connector to your project's `packages.yml`, pinned to a release tag, and run `dbt deps`:
 
 ```yaml
 packages:
   - git: "https://github.com/tuva-health/cms_alr_connector.git"
-    revision: <commit sha or tag>
+    revision: v1.0.0
 ```
+
+It installs the Medicare CCLF Connector `v1.0.0` and Tuva Core `v1.0.0`. If your project
+declares Tuva Core itself, use the same source, `git: "https://github.com/tuva-health/tuva-core.git"`
+at `revision: "v1.0.0"`, not the dbt Hub's `tuva-health/the_tuva_project`: dbt installs a package
+name from one source only.
 <br/>
 
 ### Step 2: Data Preparation
@@ -124,20 +140,35 @@ NULL (our choice: the format is fixed by CMS, and guessing would accept day/mont
 Set these vars in your project's `dbt_project.yml`:
 
 ```yaml
+flags:
+  require_ref_searches_node_package_before_root: true   # Tuva Core 1.0 requires it
+
 vars:
   input_database: <database holding the raw ALR and CCLF tables>
   input_schema: <schema holding the raw ALR and CCLF tables>
   cms_alr_connector: true      # the CCLF connector takes enrollment from this connector
-  demo_data_only: false        # see below
   claims_enabled: true
   provider_attribution_enabled: true
 ```
 
-The connector always reads its tables through `source()` and ships no demo data. Earlier versions had a `demo_data_only` var that disabled the ALR sources; this connector no longer reads it. The Medicare CCLF Connector revision it pins still does and defaults it to `true`, which makes the CCLF connector read empty bundled seeds instead of your CCLF tables, so keep `demo_data_only: false` in your project until the pin moves to a CCLF release without the var. [integration_tests/dbt_project.yml](integration_tests/dbt_project.yml) lists every var the connector and its packages read.
+dbt reads `flags:` only from the root project, so the connector's own flag does not apply when it
+is installed as a package; set it in the project that runs `dbt build`. Tuva Core 1.0 reads its
+feature vars (`claims_enabled`, `provider_attribution_enabled`) as native YAML booleans: a quoted
+`'true'` is rejected.
+
+`provider_attribution` matches the Tuva Core 1.0 input layer contract: besides the attribution
+columns it carries `file_name` (the governing ALR's Table 1-1 file) and `ingest_datetime` (that
+file's period end, the same value `enrollment` publishes as `file_date`).
+
+The connector always reads its tables through `source()` and ships no demo data. Releases before
+v1.0.0 had a `demo_data_only` var that disabled the ALR sources, and the Medicare CCLF Connector
+commit they pinned read it too. Neither reads it now, so remove it from your project; setting it
+has no effect. [integration_tests/dbt_project.yml](integration_tests/dbt_project.yml) lists every
+var the connector and its packages read.
 <br/><br/> 
 
 ### Step 4: Run
-Run the connector and the Tuva Project, for example with `dbt build` from your project's root folder.
+Run the connectors and Tuva Core, for example with `dbt build` from your project's root folder.
 
 Now you're ready to do claims data analytics!
 <br/><br/>
@@ -150,7 +181,7 @@ The `integration_tests` project installs this connector from the working tree, l
 ## 🚀 Releasing
 
 The `version:` in `dbt_project.yml` is the release version. Releases are tagged `v<version>`
-(for example `v0.1.0`). There is no changelog: release notes are generated from the merged PRs,
+(for example `v1.0.0`). There is no changelog: release notes are generated from the merged PRs,
 grouped by their release label (see `.github/release.yml`). Every PR into `main` carries exactly
 one of `breaking-change`, `enhancement`, `bug`, `docs` or `ignore-for-release`; the
 `release label` check enforces it. The required checks and commit statuses are described in
@@ -173,20 +204,17 @@ If the workflow fails after the merge, rerun it with **Actions → Create Releas
 workflow** from `main`; it reuses an existing tag only when the tag points to the current
 `main` commit.
 
-**The first release, `v0.1.0`,** keeps the version `dbt_project.yml` already has, so its PR
-bumps nothing and the merge does not trigger a release. Follow steps 1 to 2 with a release PR
-that leaves `version: '0.1.0'` as it is, merge it, and then, before anything else merges, run
-**Actions → Create Release → Run workflow** from `main`. The run tags the current `main` commit
-`v0.1.0` and creates the draft. With no earlier release, the generated notes cover every merged
-PR in the repository's history, so edit the draft before publishing it. Every later release
-bumps `version:` as above.
+The first release, `v1.0.0`, follows the same steps: `main` had `version: '0.1.0'` and no tag,
+so the release PR's bump to `1.0.0` triggers the workflow on merge. With no earlier release, the
+generated notes cover every merged PR in the repository's history, so edit the draft before
+publishing it.
 
 Projects install a release by tag:
 
 ```yaml
 packages:
   - git: https://github.com/tuva-health/cms_alr_connector.git
-    revision: v0.1.0
+    revision: v1.0.0
 ```
 <br/><br/>
 
