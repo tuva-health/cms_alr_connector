@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALR Month Precedence</title>
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --panel: #ffffff;
+    --ink: #1c1f23;
+    --muted: #6b7178;
+    --line: #e3e5e8;
+    --soft: #f1f2f4;
+    --covered: #dfe3e8;
+    --accent: #0e7c74;
+    --accent-ink: #ffffff;
+    --accent-tint: #d7efec;
+    --changed: #d97706;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141618;
+      --panel: #1b1e21;
+      --ink: #e7e9eb;
+      --muted: #9aa1a8;
+      --line: #2e3337;
+      --soft: #23272b;
+      --covered: #353b41;
+      --accent: #3cc2b5;
+      --accent-ink: #0b1514;
+      --accent-tint: #173835;
+      --changed: #f5a524;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  main { max-width: 1240px; margin: 0 auto; padding: 28px 20px 80px; }
+  h1 { font-size: 24px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  p { margin: 0 0 10px; }
+  .lede { color: var(--muted); margin-bottom: 14px; max-width: 900px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin-top: 18px; }
+  .rule { margin: 8px 0 10px 0; padding-left: 22px; max-width: 900px; }
+  .rule li { margin-bottom: 4px; }
+  .fine { font-size: 13px; color: var(--muted); }
+  button {
+    font: inherit; font-size: 13px; color: var(--ink); background: var(--soft);
+    border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.small { padding: 1px 7px; font-size: 12px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .receive-grid { display: grid; grid-template-columns: 80px 1fr; gap: 8px 12px; align-items: center; }
+  .receive-grid .py { font-weight: 600; }
+  .group-sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+  table { border-collapse: collapse; }
+  .files th, .files td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; }
+  .files th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .files td.c { text-align: center; }
+  .empty { color: var(--muted); font-style: italic; }
+  .gridwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  .grid { font-size: 11px; }
+  .grid th, .grid td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 0; height: 26px; min-width: 30px; text-align: center; }
+  .grid th.lab, .grid td.lab {
+    position: sticky; left: 0; z-index: 1; background: var(--panel); text-align: left; padding: 0 10px;
+    min-width: 210px; max-width: 210px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px;
+  }
+  .grid thead th { background: var(--panel); color: var(--muted); font-weight: 500; }
+  .grid tr.section td.lab { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--soft); }
+  .grid tr.section td { background: var(--soft); height: 18px; }
+  .grid td.m { cursor: pointer; position: relative; }
+  .grid .gov { font-weight: 600; line-height: 1.05; }
+  .grid .gov small { display: block; font-weight: 400; color: var(--muted); font-size: 9px; }
+  .grid td.cov { background: var(--covered); }
+  .grid td.win { background: var(--accent); color: var(--accent-ink); }
+  .grid td.enr { background: var(--accent-tint); color: var(--accent); font-weight: 700; }
+  .grid td.zero { color: var(--muted); }
+  .grid td.nocov { background: repeating-linear-gradient(45deg, transparent 0 4px, var(--soft) 4px 6px); }
+  .grid .selcol { box-shadow: inset 2px 0 0 var(--ink), inset -2px 0 0 var(--ink); }
+  .grid td.chg::after {
+    content: ""; position: absolute; inset: 2px; border: 2px solid var(--changed); border-radius: 3px; pointer-events: none;
+  }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -3px; margin-right: 5px; border: 1px solid var(--line); }
+  .changes { border-left: 3px solid var(--changed); padding: 8px 12px; background: var(--soft); border-radius: 0 6px 6px 0; margin-bottom: 12px; font-size: 14px; }
+  .changes ul { margin: 4px 0 0; padding-left: 18px; }
+  .detail { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; min-height: 120px; }
+  .detail h3 { margin: 0 0 6px; font-size: 16px; }
+  .detail .why { font-size: 15px; margin-bottom: 8px; }
+  .detail ul { margin: 4px 0 8px; padding-left: 18px; }
+  .detail li { margin-bottom: 3px; }
+  .tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 10px; background: var(--soft); border: 1px solid var(--line); color: var(--muted); margin-left: 4px; }
+  .tag.win { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tab { border: none; background: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 12px; color: var(--muted); }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+  .tabbody { padding-top: 14px; }
+  .steps { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .step { display: flex; gap: 12px; align-items: flex-start; }
+  .step button { min-width: 250px; text-align: left; }
+  .step .watch { font-size: 14px; color: var(--muted); padding-top: 3px; }
+  .step.done .watch { color: var(--ink); }
+  .callout { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--soft); border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 10px 0; }
+  .seed th, .seed td { padding: 3px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; white-space: nowrap; }
+  .seed th { color: var(--muted); font-weight: 500; }
+  details summary { cursor: pointer; }
+  a { color: var(--accent); }
+  .callout b { display: block; margin-bottom: 2px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Which ALR file decides each month?</h1>
+<p class="lede">Several Assignment List Reports (ALRs) cover the same months: the quarterly ALRs of a performance year overlap each other,
+the benchmark ALRs overlap the quarterlies, and the next performance year's reports overlap the current one.
+For each month the CMS ALR connector picks <b>one governing file</b> per ACO, and that file alone decides who is enrolled:</p>
+<ol class="rule">
+  <li>Take the <b>earliest performance year</b> with a file that covers the month. A closed performance year is final, so a later year's reports never rewrite it.</li>
+  <li>Within that year, take the <b>last file in the order initial &lt; Q1 &lt; Q2 &lt; Q3 &lt; Q4 &lt; benchmark</b>. The benchmark ALR is last only within its own performance year.</li>
+  <li>If the same period was delivered more than once, the <b>later T-stamp</b> wins.</li>
+</ol>
+<p>A file covers the twelve months its <code>EnrollFlag1</code>..<code>EnrollFlag12</code> map onto. <b>A beneficiary the governing file does not list is not enrolled for that month</b>,
+even if an earlier or later file lists them. A beneficiary the governing file lists with an EnrollFlag of 0 for a month is not enrolled that month either.</p>
+
+<section class="panel">
+  <h2>What the governing file supplies</h2>
+  <p>The governing file supplies all of the month's ALR-sourced fields: enrollment status, risk scores and HCC flags, demographics,
+  TIN/NPI attribution, and the Table 1-6 and 1-9 fields.</p>
+  <p>Two things come from CCLF, not from the ALR, and live in the Medicare CCLF connector (<code>medicare_cclf_connector</code>):
+  CCLF's <code>data_sharing_flag</code>, which comes from the CCLF8 demographics, and the extension of eligibility past the last month an ALR covers.
+  The choice of governing ALR doesn't affect either of them.</p>
+</section>
+
+<section class="panel">
+  <h2>How to use this page</h2>
+  <p>Pick a guided walkthrough below and click its steps in order. Each step delivers files, and the <b>month-by-month result</b> shows which file governs each month
+  and who is enrolled. Hover over (or tap) a month to see why. Below that you can deliver any file yourself, redeliver it, and choose who each file lists.</p>
+  <p class="fine">This page reflects the connector's <code>aalr_governing_file</code> model as of the release it ships in.
+  The months each file covers come from the connector's <code>mssp_file_parameters</code> seed, which is copied into this page (see
+  <a href="#coverage">the months each file covers</a> at the bottom). Every beneficiary and file here is made up.</p>
+</section>
+
+<section class="panel" id="walk">
+  <h2>Guided walkthroughs</h2>
+  <div class="tabs" id="tabs"></div>
+  <div class="tabbody" id="tabbody"></div>
+</section>
+
+<section class="panel">
+  <h2>Month-by-month result</h2>
+  <div id="changes"></div>
+  <div id="timeline"></div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--accent)"></span>governs this month</span>
+    <span><span class="sw" style="background:var(--covered)"></span>covers the month but loses</span>
+    <span><span class="sw" style="background:var(--accent-tint)"></span>✓ enrolled</span>
+    <span>· not enrolled &nbsp; 0 listed with EnrollFlag 0</span>
+    <span><span class="sw" style="border:2px solid var(--changed)"></span>changed by the last action</span>
+  </div>
+  <div class="detail" id="detail"></div>
+</section>
+
+<section class="panel">
+  <h2>Deliver an ALR file yourself</h2>
+  <p class="fine">Each click delivers a file with a new, later T-stamp. Delivering a file you already have is a redelivery. New files list every beneficiary until you untick them below.
+  Hover over a button to see the months it covers.</p>
+  <div class="receive-grid" id="receive"></div>
+  <details id="receiveOlderWrap" style="margin-top:10px">
+    <summary class="fine">Earlier performance years</summary>
+    <div class="receive-grid" id="receiveOlder" style="margin-top:8px"></div>
+  </details>
+</section>
+
+<section class="panel">
+  <h2>Delivered files and who each one lists</h2>
+  <div id="files"></div>
+  <div class="row" style="margin-top:12px"><button id="resetAll">Start over (no files)</button></div>
+</section>
+
+<section class="panel" id="coverage">
+  <h2>The months each file covers</h2>
+  <p class="fine">These are the rows of the connector's <code>seeds/mssp_file_parameters.csv</code>. A file covers twelve months from its period start,
+  up to its period end. <code>priority</code> puts the files of one performance year in order: the lower number wins, so the benchmark (1) beats Q4 (2), and the initial file (6) loses to every other file.
+  The connector's CI checks that this copy matches the seed.</p>
+  <details>
+    <summary>Show all rows</summary>
+    <div class="gridwrap" style="margin-top:8px"><div id="seedTable"></div></div>
+  </details>
+</section>
+
+</main>
+
+<!-- mssp_file_parameters rows, one object per seeds/mssp_file_parameters.csv row, in the
+     seed's order. CI (scripts/check_precedence_doc.py) fails if they differ from the seed. -->
+<script type="application/json" id="mssp-file-parameters">
+[
+{"performance_year": 2026, "report_year": 2023, "file_period": "Y2023", "period_start_date": "2023-01-01", "period_end_date": "2023-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2026, "report_year": 2024, "file_period": "Y2024", "period_start_date": "2024-01-01", "period_end_date": "2024-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2026, "report_year": 2025, "file_period": "Y2025", "period_start_date": "2025-01-01", "period_end_date": "2025-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2026, "report_year": 2026, "file_period": "Y2026", "period_start_date": "2024-10-01", "period_end_date": "2025-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2026, "report_year": 2026, "file_period": "2026Q1", "period_start_date": "2025-04-01", "period_end_date": "2026-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2026, "report_year": 2026, "file_period": "2026Q2", "period_start_date": "2025-07-01", "period_end_date": "2026-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2026, "report_year": 2026, "file_period": "2026Q3", "period_start_date": "2025-10-01", "period_end_date": "2026-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2026, "report_year": 2026, "file_period": "2026Q4", "period_start_date": "2026-01-01", "period_end_date": "2026-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2025, "report_year": 2022, "file_period": "Y2022", "period_start_date": "2022-01-01", "period_end_date": "2022-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2025, "report_year": 2023, "file_period": "Y2023", "period_start_date": "2023-01-01", "period_end_date": "2023-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2025, "report_year": 2024, "file_period": "Y2024", "period_start_date": "2024-01-01", "period_end_date": "2024-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2025, "report_year": 2025, "file_period": "Y2025", "period_start_date": "2023-10-01", "period_end_date": "2024-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2025, "report_year": 2025, "file_period": "2025Q1", "period_start_date": "2024-04-01", "period_end_date": "2025-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2025, "report_year": 2025, "file_period": "2025Q2", "period_start_date": "2024-07-01", "period_end_date": "2025-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2025, "report_year": 2025, "file_period": "2025Q3", "period_start_date": "2024-10-01", "period_end_date": "2025-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2025, "report_year": 2025, "file_period": "2025Q4", "period_start_date": "2025-01-01", "period_end_date": "2025-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2024, "report_year": 2021, "file_period": "Y2021", "period_start_date": "2021-01-01", "period_end_date": "2021-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2024, "report_year": 2022, "file_period": "Y2022", "period_start_date": "2022-01-01", "period_end_date": "2022-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2024, "report_year": 2023, "file_period": "Y2023", "period_start_date": "2023-01-01", "period_end_date": "2023-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2024, "report_year": 2024, "file_period": "Y2024", "period_start_date": "2022-10-01", "period_end_date": "2023-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2024, "report_year": 2024, "file_period": "2024Q1", "period_start_date": "2023-04-01", "period_end_date": "2024-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2024, "report_year": 2024, "file_period": "2024Q2", "period_start_date": "2023-07-01", "period_end_date": "2024-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2024, "report_year": 2024, "file_period": "2024Q3", "period_start_date": "2023-10-01", "period_end_date": "2024-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2024, "report_year": 2024, "file_period": "2024Q4", "period_start_date": "2024-01-01", "period_end_date": "2024-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2023, "report_year": 2020, "file_period": "Y2020", "period_start_date": "2020-01-01", "period_end_date": "2020-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2023, "report_year": 2021, "file_period": "Y2021", "period_start_date": "2021-01-01", "period_end_date": "2021-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2023, "report_year": 2022, "file_period": "Y2022", "period_start_date": "2022-01-01", "period_end_date": "2022-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2023, "report_year": 2023, "file_period": "Y2023", "period_start_date": "2021-10-01", "period_end_date": "2022-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2023, "report_year": 2023, "file_period": "2023Q1", "period_start_date": "2022-04-01", "period_end_date": "2023-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2023, "report_year": 2023, "file_period": "2023Q2", "period_start_date": "2022-07-01", "period_end_date": "2023-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2023, "report_year": 2023, "file_period": "2023Q3", "period_start_date": "2022-10-01", "period_end_date": "2023-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2023, "report_year": 2023, "file_period": "2023Q4", "period_start_date": "2023-01-01", "period_end_date": "2023-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2022, "report_year": 2019, "file_period": "Y2019", "period_start_date": "2019-01-01", "period_end_date": "2019-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2022, "report_year": 2020, "file_period": "Y2020", "period_start_date": "2020-01-01", "period_end_date": "2020-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2022, "report_year": 2021, "file_period": "Y2021", "period_start_date": "2021-01-01", "period_end_date": "2021-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2022, "report_year": 2022, "file_period": "Y2022", "period_start_date": "2020-10-01", "period_end_date": "2021-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2022, "report_year": 2022, "file_period": "2022Q1", "period_start_date": "2021-04-01", "period_end_date": "2022-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2022, "report_year": 2022, "file_period": "2022Q2", "period_start_date": "2021-07-01", "period_end_date": "2022-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2022, "report_year": 2022, "file_period": "2022Q3", "period_start_date": "2021-10-01", "period_end_date": "2022-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2022, "report_year": 2022, "file_period": "2022Q4", "period_start_date": "2022-01-01", "period_end_date": "2022-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2021, "report_year": 2018, "file_period": "Y2018", "period_start_date": "2018-01-01", "period_end_date": "2018-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2021, "report_year": 2019, "file_period": "Y2019", "period_start_date": "2019-01-01", "period_end_date": "2019-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2021, "report_year": 2020, "file_period": "Y2020", "period_start_date": "2020-01-01", "period_end_date": "2020-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2021, "report_year": 2021, "file_period": "Y2021", "period_start_date": "2019-10-01", "period_end_date": "2020-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2021, "report_year": 2021, "file_period": "2021Q1", "period_start_date": "2020-04-01", "period_end_date": "2021-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2021, "report_year": 2021, "file_period": "2021Q2", "period_start_date": "2020-07-01", "period_end_date": "2021-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2021, "report_year": 2021, "file_period": "2021Q3", "period_start_date": "2020-10-01", "period_end_date": "2021-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2021, "report_year": 2021, "file_period": "2021Q4", "period_start_date": "2021-01-01", "period_end_date": "2021-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2020, "report_year": 2017, "file_period": "Y2017", "period_start_date": "2017-01-01", "period_end_date": "2017-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2020, "report_year": 2018, "file_period": "Y2018", "period_start_date": "2018-01-01", "period_end_date": "2018-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2020, "report_year": 2019, "file_period": "Y2019", "period_start_date": "2019-01-01", "period_end_date": "2019-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2020, "report_year": 2020, "file_period": "Y2020", "period_start_date": "2018-10-01", "period_end_date": "2019-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2020, "report_year": 2020, "file_period": "2020Q1", "period_start_date": "2019-04-01", "period_end_date": "2020-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2020, "report_year": 2020, "file_period": "2020Q2", "period_start_date": "2019-07-01", "period_end_date": "2020-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2020, "report_year": 2020, "file_period": "2020Q3", "period_start_date": "2019-10-01", "period_end_date": "2020-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2020, "report_year": 2020, "file_period": "2020Q4", "period_start_date": "2020-01-01", "period_end_date": "2020-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2019, "report_year": 2016, "file_period": "Y2016", "period_start_date": "2016-01-01", "period_end_date": "2016-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2019, "report_year": 2017, "file_period": "Y2017", "period_start_date": "2017-01-01", "period_end_date": "2017-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2019, "report_year": 2018, "file_period": "Y2018", "period_start_date": "2018-01-01", "period_end_date": "2018-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2019, "report_year": 2019, "file_period": "Y2019", "period_start_date": "2017-10-01", "period_end_date": "2018-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2019, "report_year": 2019, "file_period": "2019Q1", "period_start_date": "2018-04-01", "period_end_date": "2019-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2019, "report_year": 2019, "file_period": "2019Q2", "period_start_date": "2018-07-01", "period_end_date": "2019-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2019, "report_year": 2019, "file_period": "2019Q3", "period_start_date": "2018-10-01", "period_end_date": "2019-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2019, "report_year": 2019, "file_period": "2019Q4", "period_start_date": "2019-01-01", "period_end_date": "2019-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2018, "report_year": 2015, "file_period": "Y2015", "period_start_date": "2015-01-01", "period_end_date": "2015-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2018, "report_year": 2016, "file_period": "Y2016", "period_start_date": "2016-01-01", "period_end_date": "2016-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2018, "report_year": 2017, "file_period": "Y2017", "period_start_date": "2017-01-01", "period_end_date": "2017-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2018, "report_year": 2018, "file_period": "Y2018", "period_start_date": "2016-10-01", "period_end_date": "2017-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2018, "report_year": 2018, "file_period": "2018Q1", "period_start_date": "2017-04-01", "period_end_date": "2018-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2018, "report_year": 2018, "file_period": "2018Q2", "period_start_date": "2017-07-01", "period_end_date": "2018-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2018, "report_year": 2018, "file_period": "2018Q3", "period_start_date": "2017-10-01", "period_end_date": "2018-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2018, "report_year": 2018, "file_period": "2018Q4", "period_start_date": "2018-01-01", "period_end_date": "2018-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2017, "report_year": 2014, "file_period": "Y2014", "period_start_date": "2014-01-01", "period_end_date": "2014-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2017, "report_year": 2015, "file_period": "Y2015", "period_start_date": "2015-01-01", "period_end_date": "2015-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2017, "report_year": 2016, "file_period": "Y2016", "period_start_date": "2016-01-01", "period_end_date": "2016-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2017, "report_year": 2017, "file_period": "Y2017", "period_start_date": "2015-10-01", "period_end_date": "2016-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2017, "report_year": 2017, "file_period": "2017Q1", "period_start_date": "2016-04-01", "period_end_date": "2017-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2017, "report_year": 2017, "file_period": "2017Q2", "period_start_date": "2016-07-01", "period_end_date": "2017-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2017, "report_year": 2017, "file_period": "2017Q3", "period_start_date": "2016-10-01", "period_end_date": "2017-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2017, "report_year": 2017, "file_period": "2017Q4", "period_start_date": "2017-01-01", "period_end_date": "2017-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2016, "report_year": 2013, "file_period": "Y2013", "period_start_date": "2013-01-01", "period_end_date": "2013-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2016, "report_year": 2014, "file_period": "Y2014", "period_start_date": "2014-01-01", "period_end_date": "2014-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2016, "report_year": 2015, "file_period": "Y2015", "period_start_date": "2015-01-01", "period_end_date": "2015-12-31", "priority": 1, "file_type": "benchmark"},
+{"performance_year": 2016, "report_year": 2016, "file_period": "Y2016", "period_start_date": "2014-10-01", "period_end_date": "2015-09-30", "priority": 6, "file_type": "initial"},
+{"performance_year": 2016, "report_year": 2016, "file_period": "2016Q1", "period_start_date": "2015-04-01", "period_end_date": "2016-03-31", "priority": 5, "file_type": "quarterly"},
+{"performance_year": 2016, "report_year": 2016, "file_period": "2016Q2", "period_start_date": "2015-07-01", "period_end_date": "2016-06-30", "priority": 4, "file_type": "quarterly"},
+{"performance_year": 2016, "report_year": 2016, "file_period": "2016Q3", "period_start_date": "2015-10-01", "period_end_date": "2016-09-30", "priority": 3, "file_type": "quarterly"},
+{"performance_year": 2016, "report_year": 2016, "file_period": "2016Q4", "period_start_date": "2016-01-01", "period_end_date": "2016-12-31", "priority": 2, "file_type": "quarterly"}
+]
+</script>
+
+<!-- ===================== Logic module: a port of aalr_governing_file. Its only DOM access is reading the seed rows above. ===================== -->
+<script id="alr-logic">
+const ALR = (function (seedRows) {
+  // mssp_file_parameters, every row, from the JSON block above.
+  // priority: lower wins (benchmark=1, Q4=2, Q3=3, Q2=4, Q1=5, initial=6).
+  const SEED = seedRows.map(r => ({
+    py: r.performance_year, period: r.file_period, start: r.period_start_date, end: r.period_end_date,
+    priority: r.priority, type: r.file_type,
+  }));
+  const SEED_ROWS = seedRows;
+  const BENES = ['A', 'B', 'C', 'D'];
+  const ORDER_TEXT = 'initial < Q1 < Q2 < Q3 < Q4 < benchmark';
+
+  // The seed row is keyed by (performance_year, file_period). Note 'Y2025' is
+  // PY2025's initial file but PY2026's benchmark file.
+  function seedRow(py, period) {
+    const r = SEED.find(s => s.py === py && s.period === period);
+    if (!r) throw new Error('No mssp_file_parameters row for PY' + py + ' ' + period);
+    return r;
+  }
+
+  function addMonths(ym, n) {
+    const [y, m] = ym.split('-').map(Number);
+    const t = y * 12 + (m - 1) + n;
+    return Math.floor(t / 12) + '-' + String((t % 12) + 1).padStart(2, '0');
+  }
+
+  function shortName(py, period) {
+    const r = seedRow(py, period);
+    if (r.type === 'initial') return 'initial';
+    if (r.type === 'benchmark') return period + ' benchmark';
+    return period.slice(4); // '2025Q3' -> 'Q3'
+  }
+  function label(file) { return 'PY' + file.py + ' ' + shortName(file.py, file.period); }
+  function code(file) {
+    const r = seedRow(file.py, file.period);
+    if (r.type === 'initial') return 'Ini';
+    if (r.type === 'benchmark') return 'B' + file.period.slice(3);
+    return file.period.slice(4);
+  }
+
+  // A file covers 12 months from period_start_date, capped at period_end_date
+  // (aalr_governing_file.file_months).
+  function coverage(file) {
+    const r = seedRow(file.py, file.period);
+    const first = r.start.slice(0, 7), last = r.end.slice(0, 7);
+    const out = [];
+    for (let i = 0; i < 12; i++) {
+      const m = addMonths(first, i);
+      if (m <= last) out.push(m);
+    }
+    return out;
+  }
+
+  // order by performance_year_number, priority, t_stamp desc
+  function compare(a, b) {
+    const ra = seedRow(a.py, a.period), rb = seedRow(b.py, b.period);
+    if (ra.py !== rb.py) return ra.py - rb.py;
+    if (ra.priority !== rb.priority) return ra.priority - rb.priority;
+    return a.tStamp < b.tStamp ? 1 : a.tStamp > b.tStamp ? -1 : 0;
+  }
+
+  function whyLost(loser, winner) {
+    const rl = seedRow(loser.py, loser.period), rw = seedRow(winner.py, winner.period);
+    if (rl.py !== rw.py) return 'later performance year than PY' + rw.py;
+    if (rl.priority !== rw.priority)
+      return shortName(loser.py, loser.period) + ' comes before ' + shortName(winner.py, winner.period) + ' in ' + ORDER_TEXT;
+    return 'older delivery (' + loser.tStamp + ', replaced by ' + winner.tStamp + ')';
+  }
+
+  function joinList(xs) {
+    if (xs.length <= 1) return xs.join('');
+    return xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+  }
+
+  // Per ACO and month: among delivered files covering the month, rank 1 wins.
+  function governingFile(files, month) {
+    const covering = files.filter(f => coverage(f).includes(month));
+    if (!covering.length) return { month, winner: null, candidates: [], why: month + ': no delivered file covers this month.' };
+    const ranked = covering.slice().sort(compare);
+    const winner = ranked[0];
+    const candidates = ranked.map(f => ({ file: f, wins: f === winner, reason: f === winner ? 'governs' : whyLost(f, winner) }));
+
+    let why;
+    const names = covering.map(label);
+    const dupLabel = label(winner);
+    if (covering.length === 1) {
+      why = month + ': only ' + dupLabel + ' covers this month, so it governs.';
+    } else {
+      const parts = [];
+      const pys = [...new Set(covering.map(f => f.py))];
+      const samePy = covering.filter(f => f.py === winner.py);
+      if (pys.length > 1) parts.push('PY' + winner.py + ' is the earliest performance year');
+      const prios = [...new Set(samePy.map(f => seedRow(f.py, f.period).priority))];
+      if (prios.length > 1)
+        parts.push((pys.length > 1 ? 'within it, ' : 'all are PY' + winner.py + ' files; ') +
+          shortName(winner.py, winner.period) + ' comes last in ' + ORDER_TEXT);
+      const sameP = samePy.filter(f => f.period === winner.period);
+      if (sameP.length > 1)
+        parts.push((parts.length ? 'and ' : '') + winner.tStamp + ' is the latest of its ' + sameP.length + ' deliveries');
+      why = month + ': covered by ' + joinList(names.map((n, i) => n + (covering.filter(f => label(f) === n).length > 1 ? ' (' + covering[i].tStamp + ')' : ''))) + '. ' +
+        parts.join('; ') + ' → ' + dupLabel + (sameP.length > 1 ? ' (' + winner.tStamp + ')' : '') + ' governs.';
+    }
+    return { month, winner, candidates, why };
+  }
+
+  function monthsSpanned(files) {
+    if (!files.length) return [];
+    let lo = null, hi = null;
+    files.forEach(f => coverage(f).forEach(m => { if (lo === null || m < lo) lo = m; if (hi === null || m > hi) hi = m; }));
+    const out = [];
+    for (let m = lo; m <= hi; m = addMonths(m, 1)) out.push(m);
+    return out;
+  }
+
+  // listing[fileId][bene] = { listed: bool, zero: [months with EnrollFlag 0] }
+  function flagFor(listing, file, bene, month) {
+    const l = listing[file.id] && listing[file.id][bene];
+    if (!l || !l.listed) return null;           // not in the file
+    return l.zero.includes(month) ? 0 : 1;      // EnrollFlag for that month
+  }
+
+  // One entry per month: governing file, the losers and why, and each beneficiary's status.
+  function enrollment(state) {
+    const months = monthsSpanned(state.files);
+    return months.map(month => {
+      const g = governingFile(state.files, month);
+      const benes = {};
+      state.benes.forEach(b => {
+        if (!g.winner) { benes[b] = { enrolled: false, flag: null, reason: 'no file covers this month' }; return; }
+        const flag = flagFor(state.listing, g.winner, b, month);
+        const elsewhere = g.candidates.filter(c => !c.wins && flagFor(state.listing, c.file, b, month) === 1).map(c => label(c.file));
+        const ignored = elsewhere.length ? ' (also listed in ' + joinList(elsewhere) + ', which do not count)' : '';
+        if (flag === null) benes[b] = { enrolled: false, flag, reason: 'not listed in ' + label(g.winner) + ', the governing file' + ignored };
+        else if (flag === 0) benes[b] = { enrolled: false, flag, reason: 'listed in ' + label(g.winner) + ' but with EnrollFlag 0 for this month' + ignored };
+        else benes[b] = { enrolled: true, flag, reason: 'listed in ' + label(g.winner) + ' with EnrollFlag 1' };
+      });
+      return { month, governing: g.winner, why: g.why, candidates: g.candidates, benes };
+    });
+  }
+
+  function initialState() {
+    return { files: [], benes: BENES.slice(), listing: {}, nextT: 1000001 };
+  }
+
+  function listingFrom(benes, listedBenes) {
+    const o = {};
+    benes.forEach(b => { o[b] = { listed: listedBenes ? listedBenes.includes(b) : true, zero: [] }; });
+    return o;
+  }
+
+  // Pure reducer: (state, action) => new state.
+  function reduce(state, a) {
+    const s = { files: state.files.slice(), benes: state.benes, listing: Object.assign({}, state.listing), nextT: state.nextT };
+    switch (a.type) {
+      case 'reset': return initialState();
+      case 'receive':
+      case 'redeliver': {
+        seedRow(a.py, a.period);
+        const prior = s.files.filter(f => f.py === a.py && f.period === a.period).sort(compare)[0];
+        const f = { id: a.py + '-' + a.period + '-T' + s.nextT, py: a.py, period: a.period, tStamp: 'T' + s.nextT };
+        s.nextT += 1;
+        s.files.push(f);
+        if (a.listed) s.listing[f.id] = listingFrom(s.benes, a.listed);
+        else if (prior) s.listing[f.id] = JSON.parse(JSON.stringify(s.listing[prior.id]));
+        else s.listing[f.id] = listingFrom(s.benes, null);
+        return s;
+      }
+      case 'remove': {
+        s.files = s.files.filter(f => f.id !== a.fileId);
+        delete s.listing[a.fileId];
+        return s;
+      }
+      case 'setListed': {
+        const fl = Object.assign({}, s.listing[a.fileId]);
+        fl[a.bene] = { listed: a.listed, zero: a.listed ? fl[a.bene].zero : [] };
+        s.listing[a.fileId] = fl;
+        return s;
+      }
+      case 'toggleFlag': {
+        const fl = Object.assign({}, s.listing[a.fileId]);
+        const cur = fl[a.bene];
+        const zero = cur.zero.includes(a.month) ? cur.zero.filter(m => m !== a.month) : cur.zero.concat([a.month]);
+        fl[a.bene] = { listed: cur.listed, zero };
+        s.listing[a.fileId] = fl;
+        return s;
+      }
+      default: throw new Error('Unknown action ' + a.type);
+    }
+  }
+
+  function filesForPy(py) { return SEED.filter(r => r.py === py); }
+
+  function performanceYears() { return [...new Set(SEED.map(r => r.py))].sort((a, b) => b - a); }
+
+  return { SEED, SEED_ROWS, BENES, seedRow, coverage, compare, governingFile, enrollment, monthsSpanned, reduce, initialState,
+           label, code, shortName, filesForPy, performanceYears, addMonths };
+})(JSON.parse(document.getElementById('mssp-file-parameters').textContent));
+</script>
+
+<!-- Walkthrough scenarios: plain data (actions for the reducer), no DOM. -->
+<script id="alr-scenarios">
+const SCENARIOS = [
+  {
+    title: '1 · A newer quarter takes over',
+    intro: 'PY2025 arrives one file at a time: the initial ALR, then Q1, Q2 and Q3. Each newer quarter takes over the months it covers. Bene D is in every file until Q3, which drops them.',
+    steps: [
+      { label: 'Receive PY2025 initial', actions: [{ type: 'receive', py: 2025, period: 'Y2025' }],
+        watch: 'The initial file governs its 12 months, 2023-10..2024-09. Everyone is enrolled.' },
+      { label: 'Receive PY2025 Q1', actions: [{ type: 'receive', py: 2025, period: '2025Q1' }],
+        watch: 'Q1 takes over 2024-04..2024-09 from the initial file and adds 2024-10..2025-03.' },
+      { label: 'Receive PY2025 Q2', actions: [{ type: 'receive', py: 2025, period: '2025Q2' }],
+        watch: 'Q2 takes over 2024-07..2025-03 and adds 2025-04..06.' },
+      { label: 'Receive PY2025 Q3 (Bene D dropped)', actions: [{ type: 'receive', py: 2025, period: '2025Q3', listed: ['A', 'B', 'C'] }],
+        watch: 'Q3 governs 2024-10..2025-09. Bene D is not in Q3, so they lose 2024-10..2025-09, even though Q1 and Q2 still list them.' },
+    ],
+  },
+  {
+    title: '2 · Benchmark is last within its year',
+    intro: 'PY2025 Q1, Q2 and Q3, then the PY2025 benchmark ALR for 2024. Within one performance year the benchmark comes last in the order, so it governs every month of 2024. Bene D is in all three quarterlies but not in the benchmark.',
+    steps: [
+      { label: 'Receive PY2025 Q1, Q2, Q3', actions: [
+          { type: 'receive', py: 2025, period: '2025Q1' },
+          { type: 'receive', py: 2025, period: '2025Q2' },
+          { type: 'receive', py: 2025, period: '2025Q3' }],
+        watch: 'The quarterlies split 2024-04..2025-09 between them. Bene D is enrolled throughout.' },
+      { label: 'Receive PY2025 Y2024 benchmark (no Bene D)', actions: [{ type: 'receive', py: 2025, period: 'Y2024', listed: ['A', 'B', 'C'] }],
+        watch: 'The benchmark governs 2024-01..2024-12. Bene D loses 2024-04..2024-12 and keeps 2025-01..2025-09, where Q3 still governs.' },
+    ],
+  },
+  {
+    title: '3 · The earlier performance year wins',
+    intro: 'PY2025 Q3 covers 2024-10..2025-09 and PY2026 Q1 covers 2025-04..2026-03. They overlap in 2025-04..09. Bene D is only in PY2026 Q1.',
+    steps: [
+      { label: 'Receive PY2025 Q3 (no Bene D)', actions: [{ type: 'receive', py: 2025, period: '2025Q3', listed: ['A', 'B', 'C'] }],
+        watch: 'PY2025 Q3 governs 2024-10..2025-09. Bene D is never enrolled.' },
+      { label: 'Receive PY2026 Q1 (Bene D listed)', actions: [{ type: 'receive', py: 2026, period: '2026Q1' }],
+        watch: 'PY2025 still governs 2025-04..09, because it is the earlier performance year. Bene D is enrolled only in 2025-10..2026-03, where PY2026 Q1 is the only file.' },
+    ],
+  },
+  {
+    title: '4 · Redelivery',
+    intro: 'PY2025 Q3 arrives listing everyone. CMS then redelivers Q3 under a later T-stamp, and the redelivery drops Bene C.',
+    steps: [
+      { label: 'Receive PY2025 Q3', actions: [{ type: 'receive', py: 2025, period: '2025Q3' }],
+        watch: 'Q3 governs 2024-10..2025-09. Everyone is enrolled.' },
+      { label: 'Redeliver PY2025 Q3 (no Bene C)', actions: [{ type: 'redeliver', py: 2025, period: '2025Q3', listed: ['A', 'B', 'D'] }],
+        watch: 'The redelivery (later T-stamp) governs the same months. Bene C loses 2024-10..2025-09. The original delivery still lists them, but it no longer counts.' },
+    ],
+  },
+  {
+    title: '5 · Benchmarks don\'t reopen a closed year',
+    intro: 'Benchmark ALRs ship with the following performance year: PY2025 delivers the benchmark files for 2022, 2023 and 2024. PY2024 Q4 and the PY2025 benchmark ALR for 2024 both cover exactly 2024-01..12. Bene C is only in PY2024 Q4 and Bene D is only in the benchmark. The same happens between PY2025 Q4 and the PY2026 benchmark for 2025.',
+    note: 'A closed performance year is final. Once an earlier performance year\'s own files cover a month (PY2024 Q4 covers 2024), a later year\'s benchmark never governs that month. A benchmark governs only months that no file from an earlier performance year covers, for example when PY2024 Q4 was never delivered. The last step shows that.',
+    steps: [
+      { label: 'Receive PY2024 Q4 (no Bene D)', actions: [{ type: 'receive', py: 2024, period: '2024Q4', listed: ['A', 'B', 'C'] }],
+        watch: 'PY2024 Q4 governs 2024-01..12. Bene C is enrolled, Bene D is not.' },
+      { label: 'Receive PY2025 Y2024 benchmark (no Bene C)', actions: [{ type: 'receive', py: 2025, period: 'Y2024', listed: ['A', 'B', 'D'] }],
+        watch: 'Nothing changes. PY2024 is the earlier performance year, so PY2024 Q4 keeps 2024. Bene D stays not enrolled even though the benchmark lists them.' },
+      { label: 'Receive PY2025 Q4 (no Bene D)', actions: [{ type: 'receive', py: 2025, period: '2025Q4', listed: ['A', 'B', 'C'] }],
+        watch: 'PY2025 Q4 governs 2025-01..12. Bene C is enrolled, Bene D is not.' },
+      { label: 'Receive PY2026 Y2025 benchmark (no Bene C)', actions: [{ type: 'receive', py: 2026, period: 'Y2025', listed: ['A', 'B', 'D'] }],
+        watch: 'Nothing changes. PY2025 Q4 keeps 2025, and the PY2026 benchmark does not govern any month.' },
+      { label: 'Remove PY2024 Q4 (what if it was never delivered?)', actions: [{ type: 'removeWhere', py: 2024, period: '2024Q4' }],
+        watch: 'Only now does the PY2025 benchmark govern 2024. Bene C loses 2024 and Bene D gains it.' },
+    ],
+  },
+  {
+    title: '6 · Initial file vs the prior year',
+    intro: 'The PY2025 initial ALR covers 2023-10..2024-09. PY2024 Q3 (2023-10..2024-09) and Q4 (2024-01..12) cover the same months. Bene D is only in the PY2025 initial file.',
+    steps: [
+      { label: 'Receive PY2025 initial', actions: [{ type: 'receive', py: 2025, period: 'Y2025' }],
+        watch: 'On its own, the initial file governs 2023-10..2024-09 and everyone is enrolled.' },
+      { label: 'Receive PY2024 Q3 (no Bene D)', actions: [{ type: 'receive', py: 2024, period: '2024Q3', listed: ['A', 'B', 'C'] }],
+        watch: 'PY2024 Q3 takes over all of 2023-10..2024-09, because PY2024 is earlier. Bene D loses every month.' },
+      { label: 'Receive PY2024 Q4 (no Bene D)', actions: [{ type: 'receive', py: 2024, period: '2024Q4', listed: ['A', 'B', 'C'] }],
+        watch: 'PY2024 Q4 takes 2024-01..09 from Q3 and adds 2024-10..12. The PY2025 initial file governs no month.' },
+    ],
+  },
+];
+
+// Helper the scenarios use: remove the latest delivery of a (PY, period).
+function applyAction(state, a) {
+  if (a.type === 'removeWhere') {
+    const f = state.files.filter(x => x.py === a.py && x.period === a.period).sort(ALR.compare)[0];
+    return f ? ALR.reduce(state, { type: 'remove', fileId: f.id }) : state;
+  }
+  return ALR.reduce(state, a);
+}
+</script>
+
+<!-- ===================== Page script: rendering and interaction ===================== -->
+<script>
+(function () {
+  let state = ALR.initialState();
+  let result = ALR.enrollment(state);
+  let changed = { cells: new Set(), lines: [] };
+  let pinned = null, hover = null;
+  let activeTab = 0, nextStep = -1;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function ranges(months) {
+    if (!months.length) return '';
+    const out = []; let a = months[0], b = months[0];
+    for (let i = 1; i < months.length; i++) {
+      if (months[i] === ALR.addMonths(b, 1)) b = months[i];
+      else { out.push(a === b ? a : a + '..' + b); a = b = months[i]; }
+    }
+    out.push(a === b ? a : a + '..' + b);
+    return out.join(', ');
+  }
+
+  function diff(before, after) {
+    const B = {}, A = {};
+    before.forEach(r => B[r.month] = r); after.forEach(r => A[r.month] = r);
+    const months = [...new Set(Object.keys(B).concat(Object.keys(A)))].sort();
+    const cells = new Set();
+    const govGroups = new Map(), beneGroups = new Map();
+    const gl = r => r && r.governing ? ALR.label(r.governing) + (r.governing.tStamp ? ' (' + r.governing.tStamp + ')' : '') : 'nothing';
+    months.forEach(m => {
+      const b = B[m], a = A[m];
+      const gb = b && b.governing ? b.governing.id : null, ga = a && a.governing ? a.governing.id : null;
+      if (gb !== ga) {
+        cells.add('gov|' + m);
+        const k = gl(b) + ' → ' + gl(a);
+        if (!govGroups.has(k)) govGroups.set(k, []); govGroups.get(k).push(m);
+      }
+      state.benes.forEach(x => {
+        const eb = !!(b && b.benes[x] && b.benes[x].enrolled), ea = !!(a && a.benes[x] && a.benes[x].enrolled);
+        if (eb !== ea) {
+          cells.add('bene:' + x + '|' + m);
+          const k = 'Bene ' + x + (ea ? ' now enrolled' : ' no longer enrolled');
+          if (!beneGroups.has(k)) beneGroups.set(k, []); beneGroups.get(k).push(m);
+        }
+      });
+    });
+    const lines = [];
+    govGroups.forEach((ms, k) => lines.push('Governing file for ' + ranges(ms) + ': ' + k));
+    beneGroups.forEach((ms, k) => lines.push(k + ': ' + ranges(ms)));
+    return { cells, lines };
+  }
+
+  function dispatch(actions, what) {
+    const before = result;
+    actions.forEach(a => { state = applyAction(state, a); });
+    result = ALR.enrollment(state);
+    changed = diff(before, result);
+    changed.what = what;
+    if (pinned && !result.find(r => r.month === pinned)) pinned = null;
+    render();
+  }
+
+  // ---------- receive panel ----------
+  // The latest three performance years are shown; earlier ones sit in a collapsed section.
+  function renderReceive() {
+    const pys = ALR.performanceYears();
+    renderReceiveInto($('receive'), pys.slice(0, 3));
+    renderReceiveInto($('receiveOlder'), pys.slice(3));
+    $('receiveOlderWrap').hidden = pys.length <= 3;
+  }
+
+  function renderReceiveInto(el, pys) {
+    el.innerHTML = '';
+    pys.forEach(py => {
+      const lab = document.createElement('div'); lab.className = 'py'; lab.textContent = 'PY' + py; el.appendChild(lab);
+      const row = document.createElement('div'); row.className = 'row';
+      const rows = ALR.filesForPy(py).slice().sort((a, b) => b.priority - a.priority || a.period.localeCompare(b.period));
+      rows.forEach((r, i) => {
+        if (i > 0 && r.type === 'benchmark' && rows[i - 1].type !== 'benchmark') { const s = document.createElement('span'); s.className = 'group-sep'; row.appendChild(s); }
+        const btn = document.createElement('button');
+        const name = ALR.shortName(py, r.period);
+        const have = state.files.some(f => f.py === py && f.period === r.period);
+        btn.textContent = (have ? 'Redeliver ' : '') + name;
+        const cov = ALR.coverage({ py, period: r.period });
+        btn.title = 'PY' + py + ' ' + name + ' covers ' + cov[0] + '..' + cov[cov.length - 1];
+        btn.onclick = () => dispatch([{ type: 'receive', py, period: r.period }], (have ? 'Redelivered ' : 'Received ') + 'PY' + py + ' ' + name);
+        row.appendChild(btn);
+      });
+      el.appendChild(row);
+    });
+  }
+
+  function sortedFiles() {
+    return state.files.slice().sort((a, b) => {
+      const ra = ALR.seedRow(a.py, a.period), rb = ALR.seedRow(b.py, b.period);
+      return a.py - b.py || rb.priority - ra.priority || (a.tStamp < b.tStamp ? -1 : 1);
+    });
+  }
+
+  // ---------- files + beneficiaries panel ----------
+  function renderFiles() {
+    const el = $('files');
+    if (!state.files.length) { el.innerHTML = '<p class="empty">No files received yet. Use the buttons above, or start a walkthrough.</p>'; return; }
+    let h = '<table class="files"><thead><tr><th>File</th><th>Delivery</th><th>Covers</th>';
+    state.benes.forEach(b => h += '<th>Lists Bene ' + b + '</th>');
+    h += '<th></th></tr></thead><tbody>';
+    sortedFiles().forEach(f => {
+      const cov = ALR.coverage(f);
+      h += '<tr><td><b>' + esc(ALR.label(f)) + '</b></td><td>' + f.tStamp + '</td><td>' + cov[0] + '..' + cov[cov.length - 1] + '</td>';
+      state.benes.forEach(b => {
+        const l = state.listing[f.id][b];
+        h += '<td class="c"><input type="checkbox" data-f="' + f.id + '" data-b="' + b + '"' + (l.listed ? ' checked' : '') + ' title="Bene ' + b + ' listed in ' + esc(ALR.label(f)) + '">' +
+             (l.listed && l.zero.length ? ' <span class="tag">flag 0: ' + l.zero.length + ' mo</span>' : '') + '</td>';
+      });
+      h += '<td><button class="small" data-redeliver="' + f.id + '">Redeliver</button> <button class="small" data-remove="' + f.id + '" title="Remove this delivery">×</button></td></tr>';
+    });
+    h += '</tbody></table><p class="fine" style="margin-top:8px">Ticked means the file lists that beneficiary with EnrollFlag 1 for every month it covers. To set EnrollFlag 0 for one month, click the month in the grid.</p>';
+    el.innerHTML = h;
+    el.querySelectorAll('input[type=checkbox]').forEach(cb => cb.onchange = () => {
+      const f = state.files.find(x => x.id === cb.dataset.f);
+      dispatch([{ type: 'setListed', fileId: cb.dataset.f, bene: cb.dataset.b, listed: cb.checked }],
+        (cb.checked ? 'Listed' : 'Unlisted') + ' Bene ' + cb.dataset.b + ' in ' + ALR.label(f) + ' (' + f.tStamp + ')');
+    });
+    el.querySelectorAll('[data-redeliver]').forEach(btn => btn.onclick = () => {
+      const f = state.files.find(x => x.id === btn.dataset.redeliver);
+      dispatch([{ type: 'redeliver', py: f.py, period: f.period }], 'Redelivered ' + ALR.label(f));
+    });
+    el.querySelectorAll('[data-remove]').forEach(btn => btn.onclick = () => {
+      const f = state.files.find(x => x.id === btn.dataset.remove);
+      dispatch([{ type: 'remove', fileId: f.id }], 'Removed ' + ALR.label(f) + ' (' + f.tStamp + ')');
+    });
+  }
+
+  // ---------- timeline grid ----------
+  function renderTimeline() {
+    const el = $('timeline');
+    if (!result.length) { el.innerHTML = '<p class="empty">Nothing to show yet: no files have been received.</p>'; return; }
+    const sel = pinned || hover;
+    const months = result.map(r => r.month);
+    const byMonth = {}; result.forEach(r => byMonth[r.month] = r);
+    const selc = m => (m === sel ? ' selcol' : '');
+    const chg = k => (changed.cells.has(k) ? ' chg' : '');
+
+    let h = '<div class="gridwrap"><table class="grid"><thead>';
+    // year row
+    h += '<tr><th class="lab"></th>';
+    let i = 0;
+    while (i < months.length) {
+      const y = months[i].slice(0, 4); let n = 0;
+      while (i + n < months.length && months[i + n].slice(0, 4) === y) n++;
+      h += '<th colspan="' + n + '" style="font-weight:600;color:var(--ink)">' + y + '</th>'; i += n;
+    }
+    h += '</tr><tr><th class="lab">Month</th>';
+    months.forEach(m => h += '<th class="m' + selc(m) + '" data-m="' + m + '">' + m.slice(5) + '</th>');
+    h += '</tr></thead><tbody>';
+
+    // governing row
+    h += '<tr><td class="lab"><b>Governing file</b></td>';
+    months.forEach(m => {
+      const g = byMonth[m].governing;
+      h += '<td class="m gov' + (g ? '' : ' nocov') + selc(m) + chg('gov|' + m) + '" data-m="' + m + '" title="' + esc(byMonth[m].why) + '">' +
+           (g ? '<small>' + String(g.py).slice(2) + '</small>' + ALR.code(g) : '') + '</td>';
+    });
+    h += '</tr>';
+
+    // candidate files
+    h += '<tr class="section"><td class="lab">Delivered files</td><td colspan="' + months.length + '"></td></tr>';
+    sortedFiles().forEach(f => {
+      const cov = new Set(ALR.coverage(f));
+      h += '<tr><td class="lab" title="' + esc(ALR.label(f)) + ' ' + f.tStamp + '">' + esc(ALR.label(f)) + ' <span class="fine">' + f.tStamp + '</span></td>';
+      months.forEach(m => {
+        const r = byMonth[m];
+        let cls = '', title = '';
+        if (cov.has(m)) {
+          const c = r.candidates.find(c => c.file.id === f.id);
+          cls = c.wins ? 'win' : 'cov';
+          title = c.wins ? 'governs ' + m : 'loses ' + m + ': ' + c.reason;
+        }
+        h += '<td class="m ' + cls + selc(m) + '" data-m="' + m + '" title="' + esc(title) + '"></td>';
+      });
+      h += '</tr>';
+    });
+
+    // beneficiaries
+    h += '<tr class="section"><td class="lab">Enrolled?</td><td colspan="' + months.length + '"></td></tr>';
+    state.benes.forEach(b => {
+      h += '<tr><td class="lab">Bene ' + b + '</td>';
+      months.forEach(m => {
+        const s = byMonth[m].benes[b];
+        const cls = !byMonth[m].governing ? 'nocov' : s.enrolled ? 'enr' : s.flag === 0 ? 'zero' : '';
+        const txt = !byMonth[m].governing ? '' : s.enrolled ? '✓' : s.flag === 0 ? '0' : '·';
+        h += '<td class="m ' + cls + selc(m) + chg('bene:' + b + '|' + m) + '" data-m="' + m + '" title="Bene ' + b + ', ' + m + ': ' + esc(s.reason) + '">' + txt + '</td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+    el.innerHTML = h;
+
+    el.querySelectorAll('[data-m]').forEach(td => {
+      td.onmouseenter = () => { if (!pinned) { hover = td.dataset.m; renderDetail(); markSel(); } };
+      td.onclick = () => { pinned = pinned === td.dataset.m ? null : td.dataset.m; hover = td.dataset.m; renderDetail(); markSel(); };
+    });
+  }
+
+  function markSel() {
+    const sel = pinned || hover;
+    document.querySelectorAll('#timeline [data-m]').forEach(td => td.classList.toggle('selcol', td.dataset.m === sel));
+  }
+
+  // ---------- month explanation ----------
+  function renderDetail() {
+    const el = $('detail');
+    const m = pinned || hover;
+    const r = m && result.find(x => x.month === m);
+    if (!r) { el.innerHTML = '<p class="fine">Hover over a month to see why its file governs. Click a month to pin the explanation and to set a beneficiary\'s EnrollFlag to 0 for that month.</p>'; return; }
+    let h = '<h3>' + m + (pinned ? ' <span class="tag">pinned, click again to unpin</span>' : '') + '</h3>';
+    h += '<div class="why">' + esc(r.why) + '</div>';
+    if (r.candidates.length) {
+      h += '<b>Files that cover ' + m + '</b><ul>';
+      r.candidates.forEach(c => {
+        h += '<li>' + esc(ALR.label(c.file)) + ' <span class="fine">' + c.file.tStamp + '</span> ' +
+             (c.wins ? '<span class="tag win">governs</span>' : '<span class="fine">loses: ' + esc(c.reason) + '</span>') + '</li>';
+      });
+      h += '</ul><b>Beneficiaries</b><ul>';
+      state.benes.forEach(b => {
+        const s = r.benes[b];
+        h += '<li>Bene ' + b + ': <b>' + (s.enrolled ? 'enrolled' : 'not enrolled') + '</b>, ' + esc(s.reason);
+        if (pinned && r.governing && s.flag !== null) {
+          h += ' <button class="small" data-flag="' + b + '">Set EnrollFlag to ' + (s.flag === 1 ? '0' : '1') + ' in ' + esc(ALR.label(r.governing)) + ' for ' + m + '</button>';
+        }
+        h += '</li>';
+      });
+      h += '</ul>';
+    }
+    el.innerHTML = h;
+    el.querySelectorAll('[data-flag]').forEach(btn => btn.onclick = () => {
+      const b = btn.dataset.flag;
+      dispatch([{ type: 'toggleFlag', fileId: r.governing.id, bene: b, month: m }], 'Changed Bene ' + b + '\'s EnrollFlag for ' + m + ' in ' + ALR.label(r.governing));
+    });
+  }
+
+  function renderChanges() {
+    const el = $('changes');
+    if (!changed.what) { el.innerHTML = ''; return; }
+    let h = '<div class="changes"><b>Last action:</b> ' + esc(changed.what);
+    if (changed.lines.length) { h += '<ul>'; changed.lines.forEach(l => h += '<li>' + esc(l) + '</li>'); h += '</ul>'; }
+    else h += '<div class="fine">No governing file or enrollment changed.</div>';
+    el.innerHTML = h + '</div>';
+  }
+
+  // ---------- walkthroughs ----------
+  function renderTabs() {
+    const tabs = $('tabs'); tabs.innerHTML = '';
+    SCENARIOS.forEach((sc, i) => {
+      const b = document.createElement('button');
+      b.className = 'tab' + (i === activeTab ? ' active' : '');
+      b.textContent = sc.title;
+      b.onclick = () => { activeTab = i; nextStep = -1; renderTabs(); };
+      tabs.appendChild(b);
+    });
+    const sc = SCENARIOS[activeTab];
+    let h = '<p>' + esc(sc.intro) + '</p>';
+    if (sc.note) h += '<div class="callout"><b>Why</b>' + esc(sc.note) + '</div>';
+    h += '<div class="row"><button class="primary" id="wtStart">' + (nextStep === -1 ? 'Start: clear all files' : 'Restart: clear all files') + '</button>' +
+         '<span class="fine">Starting clears all files, so the scenario always plays out the same way.</span></div><div class="steps">';
+    sc.steps.forEach((st, i) => {
+      const done = nextStep > i;
+      h += '<div class="step' + (done ? ' done' : '') + '"><button data-step="' + i + '"' + (nextStep === i ? '' : ' disabled') + '>' +
+           (done ? '✓ ' : (i + 1) + '. ') + esc(st.label) + '</button><div class="watch">' + (done || nextStep === i ? 'Watch: ' : '') + esc(st.watch) + '</div></div>';
+    });
+    h += '</div>';
+    $('tabbody').innerHTML = h;
+    $('wtStart').onclick = () => { nextStep = 0; pinned = null; dispatch([{ type: 'reset' }], 'Started walkthrough "' + sc.title + '"'); };
+    $('tabbody').querySelectorAll('[data-step]').forEach(btn => btn.onclick = () => {
+      const i = Number(btn.dataset.step); nextStep = i + 1;
+      dispatch(sc.steps[i].actions, sc.steps[i].label);
+    });
+  }
+
+  // The embedded mssp_file_parameters rows, as a table (static: rendered once).
+  function renderSeedTable() {
+    const cols = Object.keys(ALR.SEED_ROWS[0]);
+    let h = '<table class="seed"><thead><tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>';
+    ALR.SEED_ROWS.forEach(r => { h += '<tr>' + cols.map(c => '<td>' + esc(r[c]) + '</td>').join('') + '</tr>'; });
+    $('seedTable').innerHTML = h + '</tbody></table>';
+  }
+
+  function render() {
+    renderReceive(); renderFiles(); renderTimeline(); renderDetail(); renderChanges(); renderTabs();
+  }
+
+  $('resetAll').onclick = () => { nextStep = -1; pinned = null; dispatch([{ type: 'reset' }], 'Cleared all files'); };
+  renderSeedTable();
+  render();
+})();
+</script>
+</body>
+</html>

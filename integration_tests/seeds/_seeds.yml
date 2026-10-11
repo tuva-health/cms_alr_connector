@@ -1,6 +1,7 @@
 version: 2
 
-# CI fixture seeds, header-only for now. CI loads these into the per-run raw
+# Synthetic CI fixture seeds (see the README's Fixtures section): generated
+# outside the repo, never hand-edited. CI loads these into the per-run raw
 # schema (var input_schema) and the connectors read them through source(),
 # exactly as they read a client's raw tables: the six ALR tables
 # (source cms_ssp_reports) and the CCLF tables of the medicare_cclf_connector
