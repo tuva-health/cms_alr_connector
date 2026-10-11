@@ -21,7 +21,8 @@
     9TT0FK0XX14's 2025 ALRs carry its previous MBI (CCLF S14); the crosswalk
     maps it. This test checks months only; one row per person-month is A13's.
     It reads `enrollment` rather than the CCLF models so that it runs in the
-    connector-scope CI job, which does not build medicare_cclf_connector.
+    connector-scope CI job, which builds only medicare_cclf_connector's CCLF9
+    crosswalk models.
 */
 
 with xref as (

@@ -28,7 +28,7 @@ scripts/dbt-local seed --full-refresh --select package:integration_tests
 
 # Build and test the connector (what the dbt build / duckdb check runs)
 scripts/dbt-local build --full-refresh \
-  --select package:cms_aalr_connector package:integration_tests \
+  --select +package:cms_aalr_connector package:integration_tests \
   --exclude package:integration_tests,resource_type:seed --indirect-selection cautious
 
 # Run a model and all its upstream dependencies
