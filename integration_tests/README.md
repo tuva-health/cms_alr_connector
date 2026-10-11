@@ -120,7 +120,7 @@ so stacked PRs get the same checks. Pull requests to `main` also run
 
 | Check | What it runs |
 | --- | --- |
-| `uv lock check` | `uv lock --check`: `uv.lock` is the single toolchain pin. |
+| `uv lock check` | `uv lock --check`: `uv.lock` is the single toolchain pin. Then `scripts/check_precedence_doc.py`: the `mssp_file_parameters` rows embedded in `docs/alr-month-precedence.html` match `seeds/mssp_file_parameters.csv`. |
 | `dbt build / duckdb` | deps, parse, fixture seeds, connector unit tests, connector build. No secrets; runs on fork PRs too. |
 | `dbt build / snowflake` | Same steps, then builds the connector and every installed package (medicare_cclf_connector, the_tuva_project and its dependencies) downstream. Same-repo PRs only. |
 | `CI / Snowflake` | Commit status on the PR head carrying the Snowflake build's result. Same-repo PRs get it from `ci.yml`; fork PRs only from [External PR CI](#fork-pull-requests). |

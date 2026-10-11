@@ -5,7 +5,8 @@ name: CI
 # this connector as a local package. See integration_tests/README.md.
 #
 # Check names are stable so they can be made required:
-#   uv lock check        uv.lock matches pyproject.toml
+#   uv lock check        uv.lock matches pyproject.toml, and the precedence
+#                        doc page embeds the mssp_file_parameters seed
 #   dbt build / duckdb   connector only, no secrets, every PR (forks included)
 #   dbt build / <wh>     connector + the_tuva_project on a remote warehouse
 #
@@ -366,6 +367,10 @@ jobs:
 
       - name: Check uv.lock is up to date
         run: uv lock --check
+
+      # docs/alr-month-precedence.html embeds the seed's rows; fail if they drift.
+      - name: Check docs/alr-month-precedence.html matches mssp_file_parameters
+        run: uv run --script scripts/check_precedence_doc.py
 
   duckdb:
     name: dbt build / duckdb
