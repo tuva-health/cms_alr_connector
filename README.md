@@ -92,6 +92,8 @@ The governing file supplies all of the month's ALR-sourced fields: enrollment st
 
 A file covers the twelve months its `EnrollFlag1`..`EnrollFlag12` map onto, counted from the file's `period_start_date` in `mssp_file_parameters`. **A beneficiary the governing file does not list is not enrolled for that month**, even if an earlier or later file lists them. For example, a beneficiary dropped from 2025Q3 is not enrolled in any 2025Q3 month, and one removed in a redelivery is not enrolled in the months it governs.
 
+To see the rule play out month by month, open [docs/alr-month-precedence.html](docs/alr-month-precedence.html), an interactive page with guided walkthroughs. GitHub shows the page's source rather than the page, so download the file (**Download raw file**) and open it in a browser.
+
 The CMS ALR documentation doesn't say how overlapping reports combine, so this rule is our choice. It replaces an earlier one that picked the earliest file per beneficiary, which kept such beneficiaries enrolled from a superseded file and, after an MBI change, could enroll the same person twice in a month. The governing file for each month is in the `aalr_governing_file` model.
 
 `aalr_history_filtered` no longer has the Table 1-5 turnover reasons (`plur_r05` .. `nofnd_r06`). A beneficiary assigned in the governing file is never in that file's Table 1-5, so on those rows the reasons could only be empty. Before, a beneficiary who dropped out in one quarter and came back in the governing file carried the old reason on months where they are assigned. `aalr_history` still carries the performance year's latest reason on every row.

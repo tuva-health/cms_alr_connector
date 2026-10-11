@@ -94,6 +94,10 @@ This package no longer reads `demo_data_only`; its sources are always enabled. T
 
 `seeds/mssp_file_parameters.csv` maps CMS file metadata to performance periods (2016–2026). The `priority` column determines file precedence when multiple AALR files exist for the same period — lower priority = more recent/preferred.
 
+### Precedence explainer page
+
+`docs/alr-month-precedence.html` is a self-contained, interactive explainer of `aalr_governing_file` for stakeholders, linked from the README's "Which file decides each month". It ports the model's ranking to JavaScript and embeds every `mssp_file_parameters` row in its `mssp-file-parameters` JSON block. If you change `aalr_governing_file` or the seed, update the page in the same PR: for a seed change run `uv run --script scripts/check_precedence_doc.py --write`, and for a rule change edit the page's logic and walkthroughs to match. The `uv lock check` job fails when the embedded rows differ from the seed; it does not check the logic.
+
 ### Sources
 
 All six source tables live at `{{ var('input_database') }}.{{ var('input_schema') }}` and are defined in `models/_sources.yml`.
