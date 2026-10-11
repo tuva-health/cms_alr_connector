@@ -1,0 +1,76 @@
+name: 'integration_tests'
+version: '1.0.0'
+config-version: 2
+
+profile: default
+
+vars:
+  # This is the canonical commented inventory of the vars cms_aalr_connector
+  # and the packages it installs read. Keep every var documented here when its
+  # lookup is added or changed. Vars set here are global, so they reach
+  # medicare_cclf_connector and the_tuva_project too; the connector's own
+  # dbt_project.yml vars only apply inside the connector. CI overrides the
+  # run-specific values with --vars.
+
+  ## Source location
+  # Where the raw ALR tables (source cms_ssp_reports) and the raw CCLF tables
+  # (source medicare_cclf, read by medicare_cclf_connector) live. In this
+  # project the fixture seeds in seeds/ are loaded there, so these must name
+  # the seeds' database and schema. The defaults match the local DuckDB profile
+  # (profiles/local_duckdb) without a schema prefix; CI sets them per run.
+  input_database: cms_alr_connector_ci
+  input_schema: raw
+
+  ## medicare_cclf_connector
+  # True makes medicare_cclf_connector take enrollment and eligibility from
+  # this connector's `enrollment` model (ALR member months) instead of its own
+  # CCLF enrollment source. This is what a client project installing the ALR
+  # connector sets.
+  cms_alr_connector: true
+
+  # Set true when the CCLF enrollment source holds member months
+  # (bene_member_month) instead of enrollment spans. Unused while
+  # cms_alr_connector is true.
+  # member_months_enrollment: false
+
+  ## Domain enablement (the_tuva_project)
+  # Enables the_tuva_project's claims models downstream of the connectors.
+  claims_enabled: true
+  # Enables the_tuva_project's provider attribution models, fed by this
+  # connector's `provider_attribution` model.
+  provider_attribution_enabled: true
+
+  ## Schema naming
+  # Optional prefix for output schemas, shared with medicare_cclf_connector and
+  # the_tuva_project, e.g. dev_mike_input_layer, _dev_mike_raw_data. CI sets a
+  # per-run prefix (ci_pr_<n>_<sha8>_r<run>_a<attempt>) so concurrent runs
+  # never share schemas.
+  # tuva_schema_prefix: dev_mike
+
+  ## Demo data (medicare_cclf_connector 603a258 only)
+  # This connector no longer reads demo_data_only. The medicare_cclf_connector
+  # revision it pins still does, and defaults it to true inside its own
+  # package: true disables the CCLF sources and reads its bundled header-only
+  # seeds instead. Keep it false so the CCLF connector reads source(), as a
+  # client project must; drop it when the pin moves to a CCLF release without
+  # the var (TUVA-105).
+  demo_data_only: false
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+on-run-start:
+  - "{{ ensure_unit_test_schemas() }}"
+
+models:
+  # the_tuva_project places elementary's models in a prefixed schema, but that
+  # config only applies when the_tuva_project is the root project. Repeat it
+  # here so a CI run's elementary tables stay inside the run's schemas.
+  elementary:
+    +schema: |
+      {%- if var('tuva_schema_prefix', None) != None -%}{{ var('tuva_schema_prefix') }}_elementary{% else %}elementary{%- endif -%}

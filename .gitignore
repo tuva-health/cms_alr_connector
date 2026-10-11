@@ -3,7 +3,8 @@ dbt_packages/
 logs/
 .direnv/
 .envrc
-uv.lock
 ui.db
 .venv/
 .claude
+# dbt writes an anonymous user id next to whichever profiles.yml it uses.
+.user.yml

@@ -1,0 +1,14 @@
+default:
+  target: ci
+  outputs:
+    ci:
+      type: snowflake
+      account: "{{ env_var('DBT_SNOWFLAKE_CI_ACCOUNT') }}"
+      warehouse: "{{ env_var('DBT_SNOWFLAKE_CI_WAREHOUSE') }}"
+      database: "{{ env_var('DBT_SNOWFLAKE_CI_DATABASE') }}"
+      role: "{{ env_var('DBT_SNOWFLAKE_CI_ROLE') }}"
+      schema: "{{ env_var('DBT_SNOWFLAKE_CI_SCHEMA') }}"
+      user: "{{ env_var('DBT_SNOWFLAKE_CI_USER') }}"
+      private_key: "{{ env_var('DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY') }}"
+      private_key_passphrase: "{{ env_var('DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
+      threads: 5

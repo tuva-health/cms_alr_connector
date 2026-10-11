@@ -2,8 +2,6 @@ version: 1
 
 sources:
   - name: cms_ssp_reports
-    config:
-      enabled: "{{ var('demo_data_only', false) == false }}"
     database: "{{ var('input_database') }}"
     schema:  "{{ var('input_schema') }}"
     tables:
