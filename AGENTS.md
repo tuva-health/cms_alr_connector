@@ -6,6 +6,15 @@ This file provides guidance to Agents when working with code in this repository.
 
 This is a dbt package (`cms_aalr_connector`, repo [tuva-health/cms_alr_connector](https://github.com/tuva-health/cms_alr_connector)) that transforms raw CMS Medicare Shared Savings Program Assignment List Reports (quarterly QALR and annual AALR) into enrollment data for the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector), which feeds into the [Tuva Project](https://github.com/tuva-health/the_tuva_project) healthcare analytics framework. Client projects such as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) install it as a package. Supported warehouses are DuckDB and Snowflake, the ones CI builds.
 
+## Before you start
+
+- **Running dbt, tests or CI**: read [integration_tests/README.md](integration_tests/README.md).
+  Every run uses `--project-dir integration_tests`; the toolchain is `uv` and `uv.lock`.
+- **Opening a PR**: apply exactly one release label (`breaking-change`,
+  `enhancement`, `bug`, `docs`, `ignore-for-release`); the generated
+  release notes are grouped by it.
+- **Releasing or bumping `version:`**: read the Releasing section of [README.md](README.md#-releasing).
+
 ## Common Commands
 
 Development runs go through the `integration_tests` dbt project, which installs this package from `local: ../` and loads fixture seeds where `source()` expects the raw ALR and CCLF tables. `scripts/dbt-local` runs dbt against it with the uv-locked toolchain and a local DuckDB file. See [integration_tests/README.md](integration_tests/README.md) for the CI checks, the Snowflake setup and the var inventory.
@@ -19,7 +28,7 @@ scripts/dbt-local seed --full-refresh --select package:integration_tests
 
 # Build and test the connector (what the dbt build / duckdb check runs)
 scripts/dbt-local build --full-refresh \
-  --select package:cms_aalr_connector package:integration_tests \
+  --select +package:cms_aalr_connector package:integration_tests \
   --exclude package:integration_tests,resource_type:seed --indirect-selection cautious
 
 # Run a model and all its upstream dependencies
@@ -52,9 +61,10 @@ medicare_cclf_connector → the_tuva_project
 
 - **`models/staging/`** (`stg_aalr{N}_*.sql`): Views over raw source tables. Each model corresponds to one CMS AALR report section (AALR1, AALR2, AALR4, AALR5, AALR6, AALR9). These only cast data types using custom macros — no business logic.
 
-- **`models/intermediate/`**: Two tables that handle the complex transformations:
-  - `aalr_history`: Joins all staging models, pivots 12 monthly `enrollflag` columns into individual rows (one per enrollment month), deduplicates by TIN (by encounter count) and NPI (by PCS count) using `dbt_utils.deduplicate()`, and enriches with turnover/voluntary/underserved flags.
-  - `aalr_history_filtered`: Filters to the latest AALR file per `enrollment_month`/`performance_year` using the `priority` field from the `mssp_file_parameters` seed.
+- **`models/intermediate/`**: Three tables that handle the complex transformations:
+  - `aalr_history`: Joins all staging models, pivots 12 monthly `enrollflag` columns into individual rows (one per enrollment month), keeps the top TIN (by encounter count, ties to the lowest `MASTER_ID`) and, under it, the top NPI (by PCS count, ties to the lowest `NPI_USED`) from the same delivery as the Table 1-1 row (ACO, PY, period, T-stamp) with `row_number()` (not `dbt_utils.deduplicate()`, whose DuckDB implementation drops rows with NULL columns), and enriches with turnover/voluntary/underserved flags.
+  - `aalr_governing_file`: One row per (ACO, `enroll_month`): the file that governs the month (earliest covering performance year, then the `priority` field from the `mssp_file_parameters` seed, then the later T-stamp; a benchmark, delivered with the following performance year, governs only months no earlier year's file covers). It supplies all ALR-sourced fields for the month; CCLF's `data_sharing_flag` comes from CCLF8 and is unaffected. See the README's "Which file decides each month".
+  - `aalr_history_filtered`: Keeps only the `aalr_history` rows from each month's governing file, one per beneficiary-month.
 
 - **`models/final/enrollment.sql`**: Converts the filtered history into the CCLF connector's expected enrollment format — calculates month start/end dates, formats `member_month` as YYYYMM, and filters to `enroll_flag > 0`.
 
@@ -64,7 +74,7 @@ medicare_cclf_connector → the_tuva_project
 
 **Multi-database compatibility**: All macros use dbt's adapter dispatch pattern (`{{ adapter.dispatch(...) }}`), with implementations for BigQuery, Databricks, Fabric, MotherDuck, Redshift, and Snowflake. Only DuckDB and Snowflake are supported: CI builds those two, and the other implementations are untested.
 
-**Type-safe casting**: Use `{{ cast_numeric(column) }}` and `{{ try_to_cast_date(column, format) }}` macros instead of raw SQL `CAST()` to maintain cross-database compatibility. Counts and dollar amounts use `cast_numeric` (`numeric(38,2)`); the CMS-HCC risk scores and `bene_psnyrs_dual` use `cast_score` (`numeric(38,10)`, `BIGNUMERIC` on BigQuery) so the decimals CMS ships survive to `enrollment`. A unit test on `stg_aalr1_assigned_beneficiaries` pins that precision.
+**Type-safe casting**: Use `{{ cast_numeric(column) }}` and `{{ try_to_cast_date(column, format) }}` macros instead of raw SQL `CAST()` to maintain cross-database compatibility. Counts and dollar amounts use `cast_numeric` (`numeric(38,2)`); the CMS-HCC risk scores and the person-years fractions (`bene_psnyrs_dual`, and Table 1-9's `bene_psnyrs` and `bene_psnyrs_lis_dual`) use `cast_score` (`numeric(38,14)`, `BIGNUMERIC` on BigQuery) so the decimals CMS ships survive to `enrollment`. A unit test on `stg_aalr1_assigned_beneficiaries` pins that precision.
 
 ### Key Variables
 
@@ -83,6 +93,10 @@ This package no longer reads `demo_data_only`; its sources are always enabled. T
 ### Seeds
 
 `seeds/mssp_file_parameters.csv` maps CMS file metadata to performance periods (2016–2026). The `priority` column determines file precedence when multiple AALR files exist for the same period — lower priority = more recent/preferred.
+
+### Precedence explainer page
+
+`docs/alr-month-precedence.html` is a self-contained, interactive explainer of `aalr_governing_file` for stakeholders, linked from the README's "Which file decides each month". It ports the model's ranking to JavaScript and embeds every `mssp_file_parameters` row in its `mssp-file-parameters` JSON block. If you change `aalr_governing_file` or the seed, update the page in the same PR: for a seed change run `uv run --script scripts/check_precedence_doc.py --write`, and for a rule change edit the page's logic and walkthroughs to match. The `uv lock check` job fails when the embedded rows differ from the seed; it does not check the logic.
 
 ### Sources
 
