@@ -8,58 +8,95 @@ Check out our [docs](https://thetuvaproject.com/) to learn about the project and
 
 ## 🧰 What does this repo do?
 
-The Medicare ALR Connector is a dbt project that maps raw Medicare ALR report data to the enrollment input required by the Medicare CCLF connector, together they can be used to map the input layer required to run the Tuva Project.  This connector expects your ALR data to be organized into the tables outlined in this [CMS data dictionary](https://www.cms.gov/media/559411), which is the most recent format CMS uses to distribute ALR files.
+The Medicare ALR Connector is a dbt package that maps raw Medicare Shared Savings Program Assignment List Report (ALR) data to the enrollment input required by the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector). Together they map the input layer required to run the Tuva Project. This connector expects your ALR data to be organized into the tables outlined in this [CMS data dictionary](https://www.cms.gov/media/559411), which is the most recent format CMS uses to distribute ALR files.
+
+Install it as a package in your own dbt project, as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) does. It brings in the Medicare CCLF Connector (pinned to a commit) and, through it, the Tuva Project.
 <br/><br/>  
 
 ## 🔌 Database Support
 
-- BigQuery
-- Databricks
-- Fabric
-- MotherDuck
-- Redshift
+- DuckDB
 - Snowflake
+
+These are the warehouses CI builds on every pull request (see [integration_tests/README.md](integration_tests/README.md)).
 <br/><br/>  
 
 ## ✅ Quickstart Guide
 
-### Step 1: Clone or Fork this Repository
-Unlike [the Tuva Project](https://github.com/tuva-health/the_tuva_project), this repo is a dbt project, not a dbt package.  Clone or fork this repository to your local machine.
-<br/><br/> 
+### Step 1: Install the package
+Add the connector to your project's `packages.yml`, pinned to a commit (or, once releases exist, a tag), and run `dbt deps`:
 
-### Step 2: Import the Medicare CCLF Connector repo
-Next you need to import the Medicare CCLF repo into the Medicare ALR Connector dbt project.  For example, using dbt CLI you would `cd` into the directly where you cloned this project to and run `dbt deps` to import the latest version of the Medicare CCLF connector.
-<br/><br/> 
+```yaml
+packages:
+  - git: "https://github.com/tuva-health/cms_alr_connector.git"
+    revision: <commit sha or tag>
+```
+<br/>
 
-### Step 3: Data Preparation
+### Step 2: Data Preparation
 
 #### Source data:
-The source table names the connector is expecting can be found in the 
-`_sources.yml` config file. You can rename your source tables if needed or add an alias to the config. 
+Load each ALR table into its own table, with every column landed as text. The connector reads six tables through `source('cms_ssp_reports', ...)`; their names are in `models/_sources.yml`:
 
-#### File Name:
-The field `file_name` is used throughout this connector to determine the performance year,
-and report period parameters that are required to accurately process the ALR files to determine
-the latest enrollment records to be used. The filename for each individual file should be
-parsed from the full file path (e.g. P.A****.ACO.AALR.DYY9999.T*******_*-*.csv)
+| ALR table | Source table |
+|---|---|
+| 1-1 Assigned beneficiaries | `aalr1_assigned_beneficiaries` |
+| 1-2 Beneficiary × participant TIN | `aalr2_assigned_beneficiaries_tin` |
+| 1-4 Beneficiary × TIN × NPI | `aalr4_assigned_beneficiaries_tin_npi` |
+| 1-5 Beneficiary turnover (quarterly only) | `aalr5_beneficiary_turnover` |
+| 1-6 Assignable or voluntarily aligned | `aalr6_beneficiaries_assignable_or_voluntary` |
+| 1-9 Underserved | `aalr9_beneficiaries_underserved` |
+
+Each table has the CMS columns plus two columns your loader adds: `file_name` (see below) and `directory_name` (where the file came from; carried through, not parsed).
+
+#### File format:
+The ALR CSVs are comma-delimited with a header row whose field names are quoted. Strip the quotes from the column names when you load them. Land TINs, CCNs and NPIs (for example `va_tin`, `va_npi`, `master_id`, `npi_used`) as text: TINs and CCNs carry leading zeros that a numeric type drops, and the connector cannot restore them.
+
+#### File name:
+The field `file_name` is used throughout this connector to determine the performance year and report period of each row, which decide which file wins when several cover the same month. Set it to the per-table CSV's file name only, without the directory. The connector splits it on `.`:
+
+| Report | `file_name` |
+|---|---|
+| Quarterly ALR | `P.A<ACO>.ACO.QALR.<PY>Q<n>.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, e.g. `...QALR.2025Q3.D259999...` |
+| Annual (benchmark) ALR | `P.A<ACO>.ACO.AALR.Y<yyyy>.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, e.g. `...AALR.Y2023.D259999...` |
+
+The fourth part is the report type (`QALR` or `AALR`) and the fifth the report period (`<PY>Q<n>` or `Y<yyyy>`). The two digits after `D` in the sixth part give the performance year (`D25…` is PY 2025). A name with no period part, `P.A<ACO>.ACO.AALR.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, is read as the initial assignment for PY 20YY. The performance year and period are joined to the `mssp_file_parameters` seed, whose `priority` picks the file that wins: lower is preferred.
 
 #### Risk scores:
 CMS ships the CMS-HCC risk scores (`bene_rsk_r_scre_01` to `_12`, `esrd_score`, `dis_score`,
 `agdu_score`, `agnd_score` and their `dem_*` counterparts) and the dual-eligible person-years
 fraction `bene_psnyrs_dual` with more than two decimals. The connector keeps those decimals: the
-`cast_score` macro types these columns as `numeric(38,10)` (`BIGNUMERIC` on BigQuery), on the
-staging model and all the way through to `enrollment`. Counts and dollar amounts keep the
-`numeric(38,2)` of `cast_numeric`. Land the score columns as text or as a numeric type with at
-least the decimals CMS publishes; a source table that rounds them cannot be repaired here.
+`cast_score` macro types these columns as `numeric(38,10)`, on the staging model and all the way
+through to `enrollment`. Counts and dollar amounts keep the `numeric(38,2)` of `cast_numeric`.
+Land the score columns as text or as a numeric type with at least the decimals CMS publishes; a
+source table that rounds them cannot be repaired here.
+<br/><br/>
 
-### Step 4: Configure Input Database and Schema
-Next you need to tell dbt where your Medicare ALR source data is located.  Do this using the variables `input_database` and `input_schema` in the `dbt_project.yml` file.  You also need to configure your `profile` in the `dbt_project.yml`.
+### Step 3: Configure your project
+Set these vars in your project's `dbt_project.yml`:
+
+```yaml
+vars:
+  input_database: <database holding the raw ALR and CCLF tables>
+  input_schema: <schema holding the raw ALR and CCLF tables>
+  cms_alr_connector: true      # the CCLF connector takes enrollment from this connector
+  demo_data_only: false        # see below
+  claims_enabled: true
+  provider_attribution_enabled: true
+```
+
+The connector always reads its tables through `source()` and ships no demo data. Earlier versions had a `demo_data_only` var that disabled the ALR sources; this connector no longer reads it. The Medicare CCLF Connector revision it pins still does and defaults it to `true`, which makes the CCLF connector read empty bundled seeds instead of your CCLF tables, so keep `demo_data_only: false` in your project until the pin moves to a CCLF release without the var. [integration_tests/dbt_project.yml](integration_tests/dbt_project.yml) lists every var the connector and its packages read.
 <br/><br/> 
 
-### Step 5: Run
-Finally, run the connector and the Tuva Project. For example, using dbt CLI you would `cd` to the project root folder in the command line and execute `dbt build`.  
+### Step 4: Run
+Run the connector and the Tuva Project, for example with `dbt build` from your project's root folder.
 
 Now you're ready to do claims data analytics!
+<br/><br/>
+
+## 🧪 Development
+
+The `integration_tests` project installs this connector from the working tree, loads fixture seeds where `source()` expects the raw ALR and CCLF tables, and builds the connector against them. CI runs it on DuckDB and Snowflake. From the repo root, `scripts/dbt-local` runs dbt against it with the uv-locked toolchain; see [integration_tests/README.md](integration_tests/README.md).
 <br/><br/>
 
 ## 🙋🏻‍♀️ How do I contribute?

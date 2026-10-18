@@ -4,31 +4,32 @@ This file provides guidance to Agents when working with code in this repository.
 
 ## Project Overview
 
-This is a dbt project (`cms_aalr_connector`) that transforms raw CMS Medicare Advanced ACO Assignment List Reports (AALR) into enrollment data for the [Medicare CCLF Connector](https://github.com/z2healthinsights/medicare_cclf_connector), which feeds into the [Tuva Project](https://github.com/tuva-health/the_tuva_project) healthcare analytics framework.
+This is a dbt package (`cms_aalr_connector`, repo [tuva-health/cms_alr_connector](https://github.com/tuva-health/cms_alr_connector)) that transforms raw CMS Medicare Shared Savings Program Assignment List Reports (quarterly QALR and annual AALR) into enrollment data for the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector), which feeds into the [Tuva Project](https://github.com/tuva-health/the_tuva_project) healthcare analytics framework. Client projects such as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) install it as a package. Supported warehouses are DuckDB and Snowflake, the ones CI builds.
 
 ## Common Commands
 
+Development runs go through the `integration_tests` dbt project, which installs this package from `local: ../` and loads fixture seeds where `source()` expects the raw ALR and CCLF tables. `scripts/dbt-local` runs dbt against it with the uv-locked toolchain and a local DuckDB file. See [integration_tests/README.md](integration_tests/README.md) for the CI checks, the Snowflake setup and the var inventory.
+
 ```bash
-# Install dependencies
-dbt deps
+# Install dependencies (from integration_tests/package-lock.yml)
+scripts/dbt-local deps
 
-# Run all models
-dbt build
+# Load the fixture seeds
+scripts/dbt-local seed --full-refresh --select package:integration_tests
 
-# Run a specific model
-dbt run --select <model_name>
+# Build and test the connector (what the dbt build / duckdb check runs)
+scripts/dbt-local build --full-refresh \
+  --select package:cms_aalr_connector package:integration_tests \
+  --exclude package:integration_tests,resource_type:seed --indirect-selection cautious
 
 # Run a model and all its upstream dependencies
-dbt run --select +<model_name>
-
-# Run tests
-dbt test
-
-# Run seed data
-dbt seed
+scripts/dbt-local build --select +<model_name>
 
 # Override variables at runtime
-dbt build --vars '{"input_database": "mydb", "input_schema": "myschema", "tuva_schema_prefix": "prefix"}'
+scripts/dbt-local build --vars '{"input_database": "mydb", "input_schema": "myschema", "tuva_schema_prefix": "prefix"}'
+
+# Check uv.lock matches pyproject.toml (the uv lock check)
+uv lock --check
 ```
 
 ## Architecture
@@ -61,19 +62,23 @@ medicare_cclf_connector → the_tuva_project
 
 **File metadata extraction**: The `extract_file_metadata()` macro parses AALR filenames to determine file type, performance year, iteration, and period. This metadata joins to the `mssp_file_parameters` seed to determine file priority (lower priority number = more recent/preferred file).
 
-**Multi-database compatibility**: All macros use dbt's adapter dispatch pattern (`{{ adapter.dispatch(...) }}`), with implementations for BigQuery, Databricks, Fabric, MotherDuck, Redshift, and Snowflake.
+**Multi-database compatibility**: All macros use dbt's adapter dispatch pattern (`{{ adapter.dispatch(...) }}`), with implementations for BigQuery, Databricks, Fabric, MotherDuck, Redshift, and Snowflake. Only DuckDB and Snowflake are supported: CI builds those two, and the other implementations are untested.
 
 **Type-safe casting**: Use `{{ cast_numeric(column) }}` and `{{ try_to_cast_date(column, format) }}` macros instead of raw SQL `CAST()` to maintain cross-database compatibility. Counts and dollar amounts use `cast_numeric` (`numeric(38,2)`); the CMS-HCC risk scores and `bene_psnyrs_dual` use `cast_score` (`numeric(38,10)`, `BIGNUMERIC` on BigQuery) so the decimals CMS ships survive to `enrollment`. A unit test on `stg_aalr1_assigned_beneficiaries` pins that precision.
 
 ### Key Variables
+
+The defaults below are this repo's `dbt_project.yml`, which only applies inside the package. A consuming project (or `integration_tests/dbt_project.yml`, the canonical inventory) sets them as global vars.
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `input_database` | `tuva` | Source database for CMS data |
 | `input_schema` | `raw_data` | Source schema for CMS data |
 | `tuva_schema_prefix` | (none) | Prefix for output schemas (multi-tenant) |
-| `demo_data_only` | `false` | Toggle demo vs. production data |
 | `claims_enabled` | `true` | Enable claims processing |
+| `cms_alr_connector` | `true` | Read by medicare_cclf_connector: take enrollment from this package's `enrollment` model |
+
+This package no longer reads `demo_data_only`; its sources are always enabled. The pinned medicare_cclf_connector revision still reads it and defaults it to `true`, so consuming projects keep `demo_data_only: false` until that pin moves.
 
 ### Seeds
 

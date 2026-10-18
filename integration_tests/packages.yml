@@ -1,0 +1,5 @@
+packages:
+  # The connector under test. Its own packages.yml brings in dbt_utils and the
+  # pinned medicare_cclf_connector, which brings in the_tuva_project, so CI
+  # builds the same dependency set a client gets. package-lock.yml pins them.
+  - local: ../

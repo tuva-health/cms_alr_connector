@@ -8,7 +8,6 @@ vars:
   input_database: tuva
   input_schema: raw_data
 
-  demo_data_only: false
   claims_enabled: true
   provider_attribution_enabled: true
   cms_alr_connector: true
