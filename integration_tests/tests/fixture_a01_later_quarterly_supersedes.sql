@@ -35,7 +35,8 @@ select
 from rows_2025
 group by enroll_month
 having count(*) <> 1
-    or max(file_name) not like '%.QALR.2025Q3.D259999.T0310000\_1-1.csv' escape '\'
+    -- '!' escapes '_': Snowflake treats '\' in a string literal as an escape, so escape '\' never terminates.
+    or max(file_name) not like '%.QALR.2025Q3.D259999.T0310000!_1-1.csv' escape '!'
     or (enroll_month <= cast('2025-03-01' as date) and max(enroll_flag) <> 3)
     or (enroll_month > cast('2025-03-01' as date) and max(enroll_flag) <> 4)
 

@@ -29,8 +29,9 @@ with expected_files as (
     select
           cast(spine.date_month as date) as enroll_month
         , case
-            when cast(spine.date_month as date) <= cast('2024-12-01' as date) then '%.AALR.Y2024.D259999.T1111111\_1-1.csv'
-            else '%.QALR.2025Q3.D259999.T0310000\_1-1.csv'
+            -- '!' escapes '_': Snowflake treats '\' in a string literal as an escape, so escape '\' never terminates.
+            when cast(spine.date_month as date) <= cast('2024-12-01' as date) then '%.AALR.Y2024.D259999.T1111111!_1-1.csv'
+            else '%.QALR.2025Q3.D259999.T0310000!_1-1.csv'
           end as expected_file_pattern
     from (
         {{ dbt_utils.date_spine(
@@ -55,7 +56,7 @@ with expected_files as (
        and cast(enrollment.enrollment_start_date as date) = expected_files.enroll_month
     group by expected_files.enroll_month, expected_files.expected_file_pattern
     having count(enrollment.file_name) <> 1
-        or max(enrollment.file_name) not like max(expected_files.expected_file_pattern) escape '\'
+        or max(enrollment.file_name) not like max(expected_files.expected_file_pattern) escape '!'
 
 )
 
