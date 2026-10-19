@@ -4,6 +4,12 @@ config-version: 2
 
 profile: default
 
+flags:
+  # Tuva Core 1.0 resolves refs inside a package before the root project.
+  # CI runs this project as the root, so the flag has to live here as well
+  # as in the connector's dbt_project.yml.
+  require_ref_searches_node_package_before_root: true
+
 vars:
   # This is the canonical commented inventory of the vars cms_aalr_connector
   # and the packages it installs read. Keep every var documented here when its
@@ -47,15 +53,6 @@ vars:
   # never share schemas.
   # tuva_schema_prefix: dev_mike
 
-  ## Demo data (medicare_cclf_connector 603a258 only)
-  # This connector no longer reads demo_data_only. The medicare_cclf_connector
-  # revision it pins still does, and defaults it to true inside its own
-  # package: true disables the CCLF sources and reads its bundled header-only
-  # seeds instead. Keep it false so the CCLF connector reads source(), as a
-  # client project must; drop it when the pin moves to a CCLF release without
-  # the var (TUVA-105).
-  demo_data_only: false
-
 model-paths: ["models"]
 seed-paths: ["seeds"]
 test-paths: ["tests"]
@@ -66,11 +63,3 @@ clean-targets:
 
 on-run-start:
   - "{{ ensure_unit_test_schemas() }}"
-
-models:
-  # the_tuva_project places elementary's models in a prefixed schema, but that
-  # config only applies when the_tuva_project is the root project. Repeat it
-  # here so a CI run's elementary tables stay inside the run's schemas.
-  elementary:
-    +schema: |
-      {%- if var('tuva_schema_prefix', None) != None -%}{{ var('tuva_schema_prefix') }}_elementary{% else %}elementary{%- endif -%}

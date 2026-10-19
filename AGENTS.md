@@ -4,7 +4,7 @@ This file provides guidance to Agents when working with code in this repository.
 
 ## Project Overview
 
-This is a dbt package (`cms_aalr_connector`, repo [tuva-health/cms_alr_connector](https://github.com/tuva-health/cms_alr_connector)) that transforms raw CMS Medicare Shared Savings Program Assignment List Reports (quarterly QALR and annual AALR) into enrollment data for the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector), which feeds into the [Tuva Project](https://github.com/tuva-health/the_tuva_project) healthcare analytics framework. Client projects such as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) install it as a package. Supported warehouses are DuckDB and Snowflake, the ones CI builds.
+This is a dbt package (`cms_aalr_connector`, repo [tuva-health/cms_alr_connector](https://github.com/tuva-health/cms_alr_connector)) that transforms raw CMS Medicare Shared Savings Program Assignment List Reports (quarterly QALR and annual AALR) into enrollment data for the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector), which feeds [Tuva Core](https://github.com/tuva-health/tuva-core) 1.0 (dbt package name `the_tuva_project`). `packages.yml` pins medicare_cclf_connector `v1.0.0`, which pins Tuva Core `v1.0.0`; Tuva Core is not declared here, so bump it by moving the CCLF pin. Client projects such as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) install it as a package. Supported warehouses are DuckDB and Snowflake, the ones CI builds.
 
 ## Before you start
 
@@ -20,7 +20,7 @@ This is a dbt package (`cms_aalr_connector`, repo [tuva-health/cms_alr_connector
 Development runs go through the `integration_tests` dbt project, which installs this package from `local: ../` and loads fixture seeds where `source()` expects the raw ALR and CCLF tables. `scripts/dbt-local` runs dbt against it with the uv-locked toolchain and a local DuckDB file. See [integration_tests/README.md](integration_tests/README.md) for the CI checks, the Snowflake setup and the var inventory.
 
 ```bash
-# Install dependencies (from integration_tests/package-lock.yml)
+# Install dependencies (resolved from ../packages.yml; integration_tests/package-lock.yml is not committed)
 scripts/dbt-local deps
 
 # Load the fixture seeds
@@ -54,7 +54,7 @@ Intermediate models (tables) — enrichment, pivoting, deduplication, file prece
         ↓
 Final enrollment model (table) — CCLF connector input format
         ↓
-medicare_cclf_connector → the_tuva_project
+medicare_cclf_connector → the_tuva_project (Tuva Core 1.0)
 ```
 
 ### Model Layers
@@ -67,6 +67,7 @@ medicare_cclf_connector → the_tuva_project
   - `aalr_history_filtered`: Keeps only the `aalr_history` rows from each month's governing file, one per beneficiary-month.
 
 - **`models/final/enrollment.sql`**: Converts the filtered history into the CCLF connector's expected enrollment format — calculates month start/end dates, formats `member_month` as YYYYMM, and filters to `enroll_flag > 0`.
+- **`models/final/provider_attribution.sql`**: Tuva Core 1.0's `input_layer__provider_attribution` contract (it selects `*` from this model; `normalized__provider_attribution` reads the contract columns by name, including `file_name` and `ingest_datetime`). A missing contract column fails the Tuva build, so check the contract in `dbt_packages/the_tuva_project/models/input_layer/` when the Tuva Core pin moves.
 
 ### Key Design Patterns
 
@@ -88,7 +89,7 @@ The defaults below are this repo's `dbt_project.yml`, which only applies inside 
 | `claims_enabled` | `true` | Enable claims processing |
 | `cms_alr_connector` | `true` | Read by medicare_cclf_connector: take enrollment from this package's `enrollment` model |
 
-This package no longer reads `demo_data_only`; its sources are always enabled. The pinned medicare_cclf_connector revision still reads it and defaults it to `true`, so consuming projects keep `demo_data_only: false` until that pin moves.
+Neither this package nor medicare_cclf_connector v1.0.0 reads `demo_data_only`; sources are always enabled. Tuva Core 1.0 also needs `flags: require_ref_searches_node_package_before_root: true`, which dbt reads only from the root project: it is set in this repo's `dbt_project.yml`, in `integration_tests/dbt_project.yml`, and must be set in every consuming project.
 
 ### Seeds
 

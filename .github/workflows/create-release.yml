@@ -1,7 +1,6 @@
 name: Create Release
 # creates a draft release after a version-changing push to main; workflow_dispatch
-# releases the current main version (a retry, or the first release, v0.1.0,
-# whose version predates this workflow and so never changes)
+# retries the current main version
 # user must manually publish the release and check the latest release option
 # versions ending in -rc or -RC are marked as prereleases
 # tags are v<version>

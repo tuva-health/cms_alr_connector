@@ -2,10 +2,11 @@
 
 `integration_tests` is the dbt project used for local development and CI of
 `cms_aalr_connector`. It installs the connector as a local package
-(`packages.yml` → `local: ../`), which brings in the pinned
-`medicare_cclf_connector` and, through it, `the_tuva_project`. It loads fixture
-seeds where both connectors' `source()` expects raw tables and builds them
-against those seeds. All CI and local runs use `--project-dir integration_tests`.
+(`packages.yml` → `local: ../`), which brings in `medicare_cclf_connector`
+v1.0.0 and, through it, Tuva Core v1.0.0 (dbt package name
+`the_tuva_project`). It loads fixture seeds where both connectors' `source()`
+expects raw tables and builds them against those seeds. All CI and local runs
+use `--project-dir integration_tests`.
 
 ## Layout
 
@@ -15,12 +16,16 @@ against those seeds. All CI and local runs use `--project-dir integration_tests`
   exactly as in a client project. `cms_alr_connector: true` makes
   `medicare_cclf_connector` take enrollment from this connector's
   `enrollment` model.
-- `packages.yml`, `package-lock.yml`: the connector, plus a committed lock with
-  the same revisions as the root `package-lock.yml`. `dbt deps` installs from
-  the lock without resolving the dbt Hub; keep the two locks in step.
+- `packages.yml`: the connector only. `dbt deps` resolves its packages from
+  `../packages.yml` on every run; the `package-lock.yml` it writes here is
+  gitignored. Every pin is a release tag, so the only thing that can float is
+  `dbt_utils` within the range its dependents allow (the root
+  `package-lock.yml` records the set this release was built with).
+- `dbt_project.yml` also sets `require_ref_searches_node_package_before_root`,
+  which Tuva Core 1.0 requires and dbt reads only from the root project.
 - `seeds/`: fixture seeds, one per raw table: the six ALR tables
   (`aalr1/2/4/5/6/9_*`, source `cms_ssp_reports`) and the CCLF tables of the
-  pinned `medicare_cclf_connector` revision (source `medicare_cclf`). They load
+  `medicare_cclf_connector` v1.0.0 sources (source `medicare_cclf`). They load
   into `var('input_database')`.`var('input_schema')`, so the connectors read
   them exactly as they read a client's raw tables. Every column loads as a
   string. The seeds hold synthetic fixtures (see Fixtures below). There is no
@@ -56,9 +61,9 @@ name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 | redelivery | `QALR.2025Q3.D259999.T0310000` | 2024-10..2025-09 |
 | next performance year | `QALR.2026Q1.D269999.T0100000` | 2025-04..2026-03 |
 
-The CCLF seeds are the medicare_cclf_connector fixtures for the tables the
-pinned revision reads, and share their beneficiaries (9TT0FK0XX01-28) with
-the ALR seeds.
+The CCLF seeds are byte-identical to medicare_cclf_connector v1.0.0's own
+fixtures (same generator) for every table it reads except `enrollment`, and
+share their beneficiaries (9TT0FK0XX01-28) with the ALR seeds.
 
 Each scenario has a singular test in `tests/` (`fixture_<scenario>.sql`) that
 returns the rows breaking the outcome the CMS ALR specifications call for. The

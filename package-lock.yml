@@ -1,24 +1,11 @@
-# the_tuva_project is installed from GitHub at tag v0.17.2 (cc3b8ce), not the dbt Hub: the Hub
-# index entry for the_tuva_project 1.0.0 has a require-dbt-version string dbt cannot parse,
-# which crashes `dbt deps` whenever it resolves from the Hub. A lock install does not recurse,
-# so keep this file committed and do not regenerate it with `dbt deps --upgrade`.
 packages:
   - name: dbt_utils
     package: dbt-labs/dbt_utils
-    version: 1.3.3
+    version: 1.4.1
   - git: https://github.com/tuva-health/medicare_cclf_connector.git
     name: medicare_cclf_connector
-    revision: 603a258e3c649d6a4eb7d0835e8efc7d79371204
-  - git: https://github.com/tuva-health/the_tuva_project.git
+    revision: 1deb35646069679bffeee7abf12ce9ab0bf3e29c
+  - git: https://github.com/tuva-health/tuva-core.git
     name: the_tuva_project
-    revision: cc3b8ce89bc43925e8c493bf92d8eb1c36da6061
-  - name: dbt_expectations
-    package: metaplane/dbt_expectations
-    version: 0.10.10
-  - git: https://github.com/tuva-health/dbt-data-reliability.git
-    name: elementary
-    revision: 382c570ccf4f8733e5323ae21aa4aa9fa849fedd
-  - name: dbt_date
-    package: godatadriven/dbt_date
-    version: 0.17.2
-sha1_hash: 28beeff60a73704fad86634426350f153a3cafb0
+    revision: 131d12a5225282563917b76af92718b555c24d4d
+sha1_hash: 53131b2a080db1a4715ce9ba0615945e1d875446
