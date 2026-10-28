@@ -11,8 +11,10 @@
     window with a single EnrollFlag code, so the performance year 2025
     quarterly ALRs carry their type's risk score column.
 
-    9TT0FK2XX12  disabled (2): enrolled 2023-10..2026-03, flag 2 every month.
-    9TT0FK2XX13  aged/dual (3): enrolled 2023-10..2026-03, flag 3 every month.
+    9TT0FK2XX12  disabled (2): enrolled 2023-10..2026-03, enrollment.enroll_flag
+                 2 in every month.
+    9TT0FK2XX13  aged/dual (3): enrolled 2023-10..2026-03, enrollment.enroll_flag
+                 3 in every month.
 
     2025-01..09 is governed by the 2025Q3 redelivery (T0310000), whose rows
     carry only the type's score column: dis_score 0.55247300000000 (XX12),
@@ -23,13 +25,14 @@
 
 with flags as (
 
+    -- enrollment's public enroll_flag (the governing file's code for each
+    -- month), as in A05, so the codes are checked where consumers read them.
     select
-          bene_mbi_id
-        , enroll_month
+          current_bene_mbi_id as bene_mbi_id
+        , enrollment_start_date as enroll_month
         , enroll_flag
-    from {{ ref('aalr_history_filtered') }}
-    where bene_mbi_id in ('9TT0FK2XX12', '9TT0FK2XX13')
-      and enroll_flag > 0
+    from {{ ref('enrollment') }}
+    where current_bene_mbi_id in ('9TT0FK2XX12', '9TT0FK2XX13')
 
 )
 
@@ -76,9 +79,10 @@ select
       'A14' as scenario
     , bene_mbi_id
     , enroll_month
-    , 'unexpected EnrollFlag ' || cast(enroll_flag as {{ dbt.type_string() }}) as failure
+    , 'unexpected EnrollFlag ' || coalesce(cast(enroll_flag as {{ dbt.type_string() }}), 'null') as failure
 from flags
-where (bene_mbi_id = '9TT0FK2XX12' and enroll_flag <> 2)
+where enroll_flag is null
+   or (bene_mbi_id = '9TT0FK2XX12' and enroll_flag <> 2)
    or (bene_mbi_id = '9TT0FK2XX13' and enroll_flag <> 3)
 union all
 select
