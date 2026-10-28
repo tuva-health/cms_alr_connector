@@ -18,6 +18,20 @@ models:
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_raw_data{% else %}raw_data{%- endif -%}
+    columns:
+      - name: enroll_flag
+        description: >
+          The month's ALR Table 1-1 EnrollFlag (EnrollFlag1..12, the column for
+          this month) from the governing file, the same file that supplies every
+          other ALR field on the row: 1 ESRD, 2 Disabled, 3 Aged/Dual,
+          4 Aged/Non-Dual. CMS's 0 (not eligible) never appears: a month
+          flagged 0 has no row.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4]
+                quote: false
 
 ### intermediate
   - name: aalr_history
@@ -188,3 +202,44 @@ unit_tests:
           '2023Q4' as file_period,
           '2023' as performance_year,
           'T0000000_1-1' as iteration
+
+  - name: enrollment_keeps_enroll_flag_drops_not_eligible
+    description: >
+      enrollment publishes the governing file's EnrollFlag for the month
+      unchanged (1-4) and has no row for a month flagged 0 (not eligible).
+    model: enrollment
+    given:
+      - input: ref('aalr_history_filtered')
+        # format: sql on purpose. CI runs the unit tests before any model is
+        # built, and a dict or csv fixture makes dbt read the input relation's
+        # columns, which fails while aalr_history_filtered doesn't exist yet.
+        # A SQL fixture is used as is, so it lists every column enrollment reads.
+        format: sql
+        rows: |
+          {%- set passthrough = [
+              'bene_1st_name', 'bene_last_name', 'bene_sex_cd', 'bene_brth_dt',
+              'bene_death_dt', 'geo_ssa_cnty_cd_name', 'geo_ssa_state_name',
+              'state_county_cd', 'assignment_type', 'assigned_before', 'asg_status',
+              'partd_months', 'hcc_version', 'esrd_score', 'dis_score', 'agdu_score',
+              'agnd_score', 'dem_esrd_score', 'dem_dis_score', 'dem_agdu_score',
+              'dem_agnd_score', 'new_enrollee', 'lti_status', 'bene_race_cd',
+              'bene_psnyrs_dual', 'file_name', 'period_end_date'
+          ] -%}
+          {%- for i in range(1, 121) %}{% do passthrough.append('hcc_col_' ~ i) %}{% endfor -%}
+          {%- for i in range(1, 13) %}{% do passthrough.append('bene_rsk_r_scre_' ~ '%02d' % i) %}{% endfor -%}
+          {%- for flag in range(0, 5) %}
+          select
+            'MBI00000001' as bene_mbi_id,
+            cast('2025-0{{ flag + 1 }}-01' as date) as enroll_month,
+            cast({{ flag }} as integer) as enroll_flag,
+          {%- for column in passthrough %}
+            null as {{ column }}{{ ',' if not loop.last }}
+          {%- endfor %}
+          {{ 'union all' if not loop.last }}
+          {%- endfor %}
+    expect:
+      rows:
+        - {current_bene_mbi_id: 'MBI00000001', bene_member_month: '202502', enroll_flag: 1}
+        - {current_bene_mbi_id: 'MBI00000001', bene_member_month: '202503', enroll_flag: 2}
+        - {current_bene_mbi_id: 'MBI00000001', bene_member_month: '202504', enroll_flag: 3}
+        - {current_bene_mbi_id: 'MBI00000001', bene_member_month: '202505', enroll_flag: 4}
