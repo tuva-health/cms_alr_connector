@@ -18,6 +18,20 @@ models:
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_raw_data{% else %}raw_data{%- endif -%}
+    columns:
+      - name: enroll_flag
+        description: >
+          The month's ALR Table 1-1 EnrollFlag (EnrollFlag1..12, the column for
+          this month) from the governing file, the same file that supplies every
+          other ALR field on the row: 1 ESRD, 2 Disabled, 3 Aged/Dual,
+          4 Aged/Non-Dual. CMS's 0 (not eligible) never appears: a month
+          flagged 0 has no row.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4]
+                quote: false
 
 ### intermediate
   - name: aalr_history
@@ -188,3 +202,23 @@ unit_tests:
           '2023Q4' as file_period,
           '2023' as performance_year,
           'T0000000_1-1' as iteration
+
+  - name: enrollment_keeps_enroll_flag_drops_not_eligible
+    description: >
+      enrollment publishes the governing file's EnrollFlag for the month
+      unchanged (1-4) and has no row for a month flagged 0 (not eligible).
+    model: enrollment
+    given:
+      - input: ref('aalr_history_filtered')
+        rows:
+          - {bene_mbi_id: 'MBI00000001', enroll_month: '2025-01-01', enroll_flag: 0}
+          - {bene_mbi_id: 'MBI00000001', enroll_month: '2025-02-01', enroll_flag: 1}
+          - {bene_mbi_id: 'MBI00000001', enroll_month: '2025-03-01', enroll_flag: 2}
+          - {bene_mbi_id: 'MBI00000001', enroll_month: '2025-04-01', enroll_flag: 3}
+          - {bene_mbi_id: 'MBI00000001', enroll_month: '2025-05-01', enroll_flag: 4}
+    expect:
+      rows:
+        - {current_bene_mbi_id: 'MBI00000001', bene_member_month: '202502', enroll_flag: 1}
+        - {current_bene_mbi_id: 'MBI00000001', bene_member_month: '202503', enroll_flag: 2}
+        - {current_bene_mbi_id: 'MBI00000001', bene_member_month: '202504', enroll_flag: 3}
+        - {current_bene_mbi_id: 'MBI00000001', bene_member_month: '202505', enroll_flag: 4}

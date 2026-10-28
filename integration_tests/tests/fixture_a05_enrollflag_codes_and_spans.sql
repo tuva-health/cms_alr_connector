@@ -18,13 +18,14 @@
 
 with flags as (
 
+    -- enrollment's public enroll_flag, so the codes are checked where
+    -- consumers read them.
     select
-          bene_mbi_id
-        , enroll_month
+          current_bene_mbi_id as bene_mbi_id
+        , enrollment_start_date as enroll_month
         , enroll_flag
-    from {{ ref('aalr_history_filtered') }}
-    where bene_mbi_id in ('9TT0FK0XX21', '9TT0FK0XX04', '9TT0FK0XX22')
-      and enroll_flag > 0
+    from {{ ref('enrollment') }}
+    where current_bene_mbi_id in ('9TT0FK0XX21', '9TT0FK0XX04', '9TT0FK0XX22')
 
 )
 
