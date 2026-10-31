@@ -10,7 +10,7 @@ Check out our [docs](https://thetuvaproject.com/) to learn about the project and
 
 The Medicare ALR Connector is a dbt package that maps raw Medicare Shared Savings Program Assignment List Report (ALR) data to the enrollment input required by the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector). Together they map the input layer required to run Tuva Core. This connector expects your ALR data to be organized into the tables outlined in this [CMS data dictionary](https://www.cms.gov/media/559411), which is the most recent format CMS uses to distribute ALR files.
 
-Install it as a package in your own dbt project, as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) does. It brings in the Medicare CCLF Connector (pinned to release `v1.0.0`) and, through it, [Tuva Core](https://github.com/tuva-health/tuva-core) 1.0.0, whose dbt package name is still `the_tuva_project`.
+Install it as a package in your own dbt project, as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) does. It brings in the Medicare CCLF Connector (pinned to release `v1.0.1`) and, through it, [Tuva Core](https://github.com/tuva-health/tuva-core) 1.0.0, whose dbt package name is still `the_tuva_project`.
 <br/><br/>  
 
 ## 🩺 Attributed practice and provider
@@ -42,10 +42,10 @@ These are the warehouses CI builds on every pull request, and the ones the relea
 
 ## 📦 Supported versions
 
-| | v1.0.0 |
+| | v1.1.0 |
 |---|---|
 | dbt Core | 1.10.5 or later (Tuva Core's `require-dbt-version` is `>=1.10.5,<3.0.0`). CI runs dbt-core 1.10.20 with dbt-duckdb 1.10.1 and dbt-snowflake 1.10.7, pinned in `uv.lock`. |
-| Medicare CCLF Connector | `v1.0.0`, installed by this package's `packages.yml`. |
+| Medicare CCLF Connector | `v1.0.1`, installed by this package's `packages.yml`. |
 | Tuva Core | 1.0.0 (`tuva-health/tuva-core`, tag `v1.0.0`), installed through the Medicare CCLF Connector. Tuva Project 0.x is not supported. |
 
 v1.0.0 is the first release. Before it, projects pinned an untagged commit, which installed Medicare CCLF Connector 603a258 and the Tuva Project v0.17.2.
@@ -59,10 +59,10 @@ Add the connector to your project's `packages.yml`, pinned to a release tag, and
 ```yaml
 packages:
   - git: "https://github.com/tuva-health/cms_alr_connector.git"
-    revision: v1.0.0
+    revision: v1.1.0
 ```
 
-It installs the Medicare CCLF Connector `v1.0.0` and Tuva Core `v1.0.0`. If your project
+It installs the Medicare CCLF Connector `v1.0.1` and Tuva Core `v1.0.0`. If your project
 declares Tuva Core itself, use the same source, `git: "https://github.com/tuva-health/tuva-core.git"`
 at `revision: "v1.0.0"`, not the dbt Hub's `tuva-health/the_tuva_project`: dbt installs a package
 name from one source only.
@@ -223,7 +223,7 @@ Projects install a release by tag:
 ```yaml
 packages:
   - git: https://github.com/tuva-health/cms_alr_connector.git
-    revision: v1.0.0
+    revision: v1.1.0
 ```
 <br/><br/>
 

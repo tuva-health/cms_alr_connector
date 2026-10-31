@@ -1,6 +1,6 @@
 packages:
   # The connector under test. Its own packages.yml brings in dbt_utils and
-  # medicare_cclf_connector v1.0.0, which brings in Tuva Core v1.0.0 (dbt
+  # medicare_cclf_connector v1.0.1, which brings in Tuva Core v1.0.0 (dbt
   # package name the_tuva_project), so CI builds the same dependency set a
   # client gets. `dbt deps` resolves them fresh on every run: the lock this
   # writes is gitignored, because its hash covers only this file and a

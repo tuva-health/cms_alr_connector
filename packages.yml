@@ -3,8 +3,8 @@ packages:
     version: [">=0.9.2"]
   # Pinned to a release tag, not `main`, so a lock regeneration here or in a
   # downstream project (cms_mssp_connector) never pulls an unreleased commit.
-  # medicare_cclf_connector v1.0.0 brings in Tuva Core v1.0.0 (git
+  # medicare_cclf_connector v1.0.1 brings in Tuva Core v1.0.0 (git
   # tuva-health/tuva-core.git, dbt package name the_tuva_project). Tuva Core is
   # not declared here: it resolves through this one pin. Bump deliberately.
   - git: "https://github.com/tuva-health/medicare_cclf_connector.git"
-    revision: "v1.0.0"
+    revision: "v1.0.1"
