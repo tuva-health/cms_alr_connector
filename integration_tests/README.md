@@ -85,7 +85,12 @@ not enrolled for that month. The scenarios cover:
 - Tables 1-6 and 1-9 (A09, A09b);
 - ALR months matching the CCLF fixtures' enrollment (A10), an initial-assignment
   file (A11), overlapping performance years (A12), and an MBI change across
-  performance years (A13).
+  performance years (A13);
+- and an assigned disabled (EnrollFlag 2) and an assigned aged/dual (3)
+  beneficiary, listed in every delivery with one code throughout, whose
+  performance year 2025 rows carry `dis_score` / `agdu_score` (A14). With
+  them every enrollment type has assigned, scored 2025 member-months, which
+  a client project's per-type benchmark cap needs.
 
 Tests for known connector bugs carry the Linear issue key as a tag and fail
 until the bug is fixed, e.g. `--select tag:tuva-110`. Every fixture test
