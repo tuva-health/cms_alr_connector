@@ -3,7 +3,7 @@
 `integration_tests` is the dbt project used for local development and CI of
 `cms_aalr_connector`. It installs the connector as a local package
 (`packages.yml` → `local: ../`), which brings in `medicare_cclf_connector`
-v1.0.0 and, through it, Tuva Core v1.0.0 (dbt package name
+v1.0.1 and, through it, Tuva Core v1.0.0 (dbt package name
 `the_tuva_project`). It loads fixture seeds where both connectors' `source()`
 expects raw tables and builds them against those seeds. All CI and local runs
 use `--project-dir integration_tests`.
@@ -25,7 +25,7 @@ use `--project-dir integration_tests`.
   which Tuva Core 1.0 requires and dbt reads only from the root project.
 - `seeds/`: fixture seeds, one per raw table: the six ALR tables
   (`aalr1/2/4/5/6/9_*`, source `cms_ssp_reports`) and the CCLF tables of the
-  `medicare_cclf_connector` v1.0.0 sources (source `medicare_cclf`). They load
+  `medicare_cclf_connector` v1.0.1 sources (source `medicare_cclf`). They load
   into `var('input_database')`.`var('input_schema')`, so the connectors read
   them exactly as they read a client's raw tables. Every column loads as a
   string. The seeds hold synthetic fixtures (see Fixtures below). There is no
@@ -63,7 +63,11 @@ name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 
 The CCLF seeds are byte-identical to medicare_cclf_connector v1.0.0's own
 fixtures (same generator) for every table it reads except `enrollment`, and
-share their beneficiaries (9TT0FK0XX01-28) with the ALR seeds.
+share their beneficiaries (9TT0FK0XX01-28) with the ALR seeds. v1.0.1 adds
+CCLF-only dual status scenarios (S31-S33, 9TT0FK0XX29-31) to its own
+`beneficiary_demographics` and leaves the rest unchanged. They are not copied
+here because they have no ALR rows. For the beneficiaries these seeds ship,
+the rows still match v1.0.1's.
 
 Each scenario has a singular test in `tests/` (`fixture_<scenario>.sql`) that
 returns the rows breaking the outcome the CMS ALR specifications call for. The

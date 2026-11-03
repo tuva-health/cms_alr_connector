@@ -4,7 +4,7 @@ This file provides guidance to Agents when working with code in this repository.
 
 ## Project Overview
 
-This is a dbt package (`cms_aalr_connector`, repo [tuva-health/cms_alr_connector](https://github.com/tuva-health/cms_alr_connector)) that transforms raw CMS Medicare Shared Savings Program Assignment List Reports (quarterly QALR and annual AALR) into enrollment data for the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector), which feeds [Tuva Core](https://github.com/tuva-health/tuva-core) 1.0 (dbt package name `the_tuva_project`). `packages.yml` pins medicare_cclf_connector `v1.0.0`, which pins Tuva Core `v1.0.0`; Tuva Core is not declared here, so bump it by moving the CCLF pin. Client projects such as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) install it as a package. Supported warehouses are DuckDB and Snowflake, the ones CI builds.
+This is a dbt package (`cms_aalr_connector`, repo [tuva-health/cms_alr_connector](https://github.com/tuva-health/cms_alr_connector)) that transforms raw CMS Medicare Shared Savings Program Assignment List Reports (quarterly QALR and annual AALR) into enrollment data for the [Medicare CCLF Connector](https://github.com/tuva-health/medicare_cclf_connector), which feeds [Tuva Core](https://github.com/tuva-health/tuva-core) 1.0 (dbt package name `the_tuva_project`). `packages.yml` pins medicare_cclf_connector `v1.0.1`, which pins Tuva Core `v1.0.0`; Tuva Core is not declared here, so bump it by moving the CCLF pin. Client projects such as [cms_mssp_connector](https://github.com/tuva-health/cms_mssp_connector) install it as a package. Supported warehouses are DuckDB and Snowflake, the ones CI builds.
 
 ## Before you start
 
@@ -89,7 +89,7 @@ The defaults below are this repo's `dbt_project.yml`, which only applies inside 
 | `claims_enabled` | `true` | Enable claims processing |
 | `cms_alr_connector` | `true` | Read by medicare_cclf_connector: take enrollment from this package's `enrollment` model |
 
-Neither this package nor medicare_cclf_connector v1.0.0 reads `demo_data_only`; sources are always enabled. Tuva Core 1.0 also needs `flags: require_ref_searches_node_package_before_root: true`, which dbt reads only from the root project: it is set in this repo's `dbt_project.yml`, in `integration_tests/dbt_project.yml`, and must be set in every consuming project.
+Neither this package nor medicare_cclf_connector v1.0.1 reads `demo_data_only`; sources are always enabled. Tuva Core 1.0 also needs `flags: require_ref_searches_node_package_before_root: true`, which dbt reads only from the root project: it is set in this repo's `dbt_project.yml`, in `integration_tests/dbt_project.yml`, and must be set in every consuming project.
 
 ### Seeds
 

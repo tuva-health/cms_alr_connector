@@ -8,7 +8,7 @@
 /*
     Fixture scenario A10: with cms_alr_connector true, medicare_cclf_connector
     takes enrollment from this connector's `enrollment` model (medicare_cclf_connector
-    v1.0.0's stg_enrollment selects it unchanged and applies the CCLF9
+    v1.0.1's stg_enrollment selects it unchanged and applies the CCLF9
     crosswalk in int_eligibility_member_months_combined). The ALR fixtures cover the
     same beneficiaries as the CCLF fixtures (9TT0FK0XX01-28), so after the
     CCLF9 crosswalk (seed beneficiary_xref) their member months in 2025-01 to
