@@ -3,6 +3,7 @@ SELECT
   CAST( {{ dbt.date_trunc('month', 'enroll_month') }} AS DATE) as enrollment_start_date,
   CAST( {{ last_day_of_month('enroll_month') }} AS DATE) as enrollment_end_date,
   {{ format_yyyymm('enroll_month') }} as bene_member_month,
+  enroll_flag as enroll_flag,
   bene_1st_name as bene_first_name,
   bene_last_name as bene_last_name,
   bene_sex_cd as bene_sex_cd,

@@ -66,7 +66,7 @@ medicare_cclf_connector → the_tuva_project (Tuva Core 1.0)
   - `aalr_governing_file`: One row per (ACO, `enroll_month`): the file that governs the month (earliest covering performance year, then the `priority` field from the `mssp_file_parameters` seed, then the later T-stamp; a benchmark, delivered with the following performance year, governs only months no earlier year's file covers). It supplies all ALR-sourced fields for the month; CCLF's `data_sharing_flag` comes from CCLF8 and is unaffected. See the README's "Which file decides each month".
   - `aalr_history_filtered`: Keeps only the `aalr_history` rows from each month's governing file, one per beneficiary-month.
 
-- **`models/final/enrollment.sql`**: Converts the filtered history into the CCLF connector's expected enrollment format — calculates month start/end dates, formats `member_month` as YYYYMM, and filters to `enroll_flag > 0`.
+- **`models/final/enrollment.sql`**: Converts the filtered history into the CCLF connector's expected enrollment format — calculates month start/end dates, formats `member_month` as YYYYMM, filters to `enroll_flag > 0`, and publishes `enroll_flag` (1 ESRD, 2 Disabled, 3 Aged/Dual, 4 Aged/Non-Dual) from the governing file.
 - **`models/final/provider_attribution.sql`**: Tuva Core 1.0's `input_layer__provider_attribution` contract (it selects `*` from this model; `normalized__provider_attribution` reads the contract columns by name, including `file_name` and `ingest_datetime`). A missing contract column fails the Tuva build, so check the contract in `dbt_packages/the_tuva_project/models/input_layer/` when the Tuva Core pin moves.
 
 ### Key Design Patterns

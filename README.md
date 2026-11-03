@@ -116,6 +116,13 @@ The CMS ALR documentation doesn't say how overlapping reports combine, so this r
 
 `aalr_history_filtered` no longer has the Table 1-5 turnover reasons (`plur_r05` .. `nofnd_r06`). A beneficiary assigned in the governing file is never in that file's Table 1-5, so on those rows the reasons could only be empty. Before, a beneficiary who dropped out in one quarter and came back in the governing file carried the old reason on months where they are assigned. `aalr_history` still carries the performance year's latest reason on every row.
 
+#### Enrollment flag:
+`enrollment.enroll_flag` is the month's `EnrollFlag` from Table 1-1 (`EnrollFlag1`..`EnrollFlag12`, the
+column for that month), read from the governing file: `1` ESRD, `2` Disabled, `3` Aged/Dual,
+`4` Aged/Non-Dual. CMS's `0` (not eligible) never appears, because a month flagged `0` has no row.
+It is an integer, and is on every row (added in v1.1.0; earlier releases filtered on it without
+publishing it).
+
 #### Risk scores:
 CMS ships the CMS-HCC risk scores (`bene_rsk_r_scre_01` to `_12`, `esrd_score`, `dis_score`,
 `agdu_score`, `agnd_score` and their `dem_*` counterparts) and the person-years fractions
