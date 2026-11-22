@@ -79,9 +79,9 @@ aalr_exploded_by_enrollflag AS (
 -- Calculate enrollment month for each record based on the period the file is for and the month number from the enrollflag.
 -- The parameters row must match the file's type too: a settlement AALR (AALR.Y2025.D259999 for PY2025) has the
 -- initial assignment's performance year and period, and would otherwise be read as the PY's initial file
--- (TUVA-152). Settlement AALRs have no mssp_file_parameters rows, so the LEFT JOIN would give them a NULL
--- enroll_month: they are filtered out here (and in beneficiary_turnover) until TUVA-113 adds their rows and
--- decides where they sit in the month precedence. They remain in the staging models.
+-- (TUVA-152). A settlement AALR never governs a month (TUVA-113), so it is filtered out here (and in
+-- beneficiary_turnover): its rows would otherwise rank in row_number below and could push the governing file's
+-- row off rank 1 in aalr_history_filtered. It is exposed as aalr_settlement_population instead.
 add_calculated_month AS (
   SELECT
     CAST({{ dbt.dateadd('month', 'aalr.month_number - 1', 'mfp.period_start_date') }} AS DATE) AS enroll_month, -- Date add period_start_date + month number of flag - 1
@@ -144,48 +144,9 @@ add_calculated_month AS (
   WHERE coalesce(aalr.ALR_FILE_TYPE, '') <> 'settlement'
 ),
 
--- Rank each beneficiary's TINs (MASTER_ID) by E&M line count, and each TIN's
--- NPIs by PCS count, within one delivery (TUVA-108): DELIVERY_ID, the file
--- name without its _1-<table>.csv suffix. Not (aco_id, performance year, file
--- period, t_stamp): a settlement AALR and the initial assignment can share all
--- four (TUVA-152).
--- A plain row_number() + rn = 1, not dbt_utils.deduplicate: its default
--- implementation (used on DuckDB) re-joins the ranked rows with a NATURAL
--- JOIN on every column, and NULL = NULL never matches, so every row with a
--- blank column (BENE_HIC_NUM, BENE_DEATH_DT) dropped out (TUVA-112).
--- Ties on the count go to the lowest MASTER_ID / NPI_USED (our choice: CMS
--- breaks them on the most recent primary care service date, which the ALR
--- does not carry). NULLS LAST is explicit because Snowflake sorts NULLs first
--- on DESC and DuckDB last.
-ranked_tin AS (
-  SELECT
-    tin.*,
-    row_number() OVER (
-      PARTITION BY tin.BENE_MBI_ID, tin.DELIVERY_ID
-      ORDER BY tin.B_EM_LINE_CNT_T DESC NULLS LAST, tin.MASTER_ID ASC NULLS LAST
-    ) AS rn
-  FROM {{ ref('stg_aalr2_assigned_beneficiaries_tin') }} AS tin
-),
-
--- Filter to only the top MASTER_ID (TIN) based on EM counts
-top_tin AS (
-  SELECT * FROM ranked_tin WHERE rn = 1
-),
-
-ranked_npi AS (
-  SELECT
-    npi.*,
-    row_number() OVER (
-      PARTITION BY npi.BENE_MBI_ID, npi.DELIVERY_ID, npi.MASTER_ID
-      ORDER BY npi.PCS_COUNT DESC NULLS LAST, npi.NPI_USED ASC NULLS LAST
-    ) AS rn
-  FROM {{ ref('stg_aalr4_assigned_beneficiaries_tin_npi') }} AS npi
-),
-
--- Filter to only the top NPI for each Master_ID (TIN) based on PCS counts
-top_npi AS (
-  SELECT * FROM ranked_npi WHERE rn = 1
-),
+-- Each beneficiary's top TIN and, under it, top NPI within one delivery
+-- (TUVA-108); see the macro for the ranking and its tie-breaks.
+{{ aalr_top_tin_and_npi() }},
 
 -- Get latest beneficiary turnover reason for the year (if a member leaves, comes back, and leaves again, we'll get the latest)
 beneficiary_turnover AS (
@@ -215,7 +176,7 @@ beneficiary_turnover AS (
     ON bt.PERFORMANCE_YEAR = mfp.PERFORMANCE_YEAR
     AND bt.file_period = mfp.file_period
     AND bt.ALR_FILE_TYPE = mfp.file_type
-  -- A settlement AALR's Table 1-5, if CMS ships one, waits for TUVA-113 like its Table 1-1.
+  -- A settlement AALR's Table 1-5, if CMS ships one, stays out like its Table 1-1 (TUVA-113).
   WHERE coalesce(bt.ALR_FILE_TYPE, '') <> 'settlement'
 ),
 

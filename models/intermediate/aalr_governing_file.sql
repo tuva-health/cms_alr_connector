@@ -22,9 +22,15 @@
     medicare_cclf_connector and does not depend on it.
 
     A file's mssp_file_parameters row matches its performance year, period
-    and type (alr_file_type from extract_file_metadata). A settlement AALR has
-    the initial assignment's performance year and period but no parameters
-    row, so it governs no month until TUVA-113 places it (TUVA-152).
+    and type (alr_file_type from extract_file_metadata): a settlement AALR has
+    the initial assignment's performance year and period (TUVA-152).
+
+    A settlement AALR never governs a month (TUVA-113). It is excluded here
+    explicitly, not by its seed row (whose priority is blank), and is exposed
+    as aalr_settlement_population instead. CMS's final assignment for a
+    closed year sits beside the quarterly ALRs rather than replacing them, so
+    enrollment, attribution and the risk scores read downstream keep the
+    files the projection was built from.
 
     One row per (aco_id, enroll_month). To take any ALR table from the
     governing file, join on delivery_id (that table's file_name without its
@@ -44,6 +50,7 @@ with delivered_files as (
         , delivery_id
         , alr_file_type
     from {{ ref('stg_aalr1_assigned_beneficiaries') }}
+    where coalesce(alr_file_type, '') <> 'settlement'
 
 )
 

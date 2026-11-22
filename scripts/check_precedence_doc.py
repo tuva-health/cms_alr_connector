@@ -25,7 +25,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SEED = REPO_ROOT / "seeds" / "mssp_file_parameters.csv"
 PAGE = REPO_ROOT / "docs" / "alr-month-precedence.html"
 
-# Integer columns are embedded as JSON numbers; the rest as strings.
+# Integer columns are embedded as JSON numbers (an empty one, a settlement
+# row's priority, as null); the rest as strings.
 INT_COLUMNS = {"performance_year", "report_year", "priority"}
 
 BLOCK = re.compile(
@@ -40,8 +41,10 @@ def seed_rows() -> list[dict[str, str]]:
 
 
 def render_block(rows: list[dict[str, str]]) -> str:
-    def value(column: str, text: str) -> int | str:
-        return int(text) if column in INT_COLUMNS else text
+    def value(column: str, text: str) -> int | str | None:
+        if column not in INT_COLUMNS:
+            return text
+        return int(text) if text else None
 
     lines = [json.dumps({c: value(c, v) for c, v in row.items()}) for row in rows]
     return "[\n" + ",\n".join(lines) + "\n]"
@@ -68,7 +71,7 @@ def main() -> int:
 
     # Compare as text, column by column, in the seed's row order.
     seed = [dict(row) for row in rows]
-    page = [{c: str(v) for c, v in row.items()} for row in embedded]
+    page = [{c: "" if v is None else str(v) for c, v in row.items()} for row in embedded]
     if page == seed:
         print(f"OK: {PAGE.relative_to(REPO_ROOT)} embeds all {len(seed)} rows of {SEED.relative_to(REPO_ROOT)}")
         return 0

@@ -39,9 +39,9 @@ models:
       Combined table of all historical assignment list reports, pivoted to one
       row per beneficiary, month and Table 1-1 file. Tables 1-2, 1-4, 1-6 and
       1-9 are joined from the same delivery as the Table 1-1 row (delivery_id).
-      Settlement AALRs (alr_file_type settlement) are filtered out until
-      TUVA-113 gives them mssp_file_parameters rows and a place in the month
-      precedence.
+      Settlement AALRs (alr_file_type settlement) are left out: a settlement
+      never governs a month (TUVA-113), and its rows are in
+      aalr_settlement_population.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
@@ -86,11 +86,60 @@ models:
       - name: alr_file_type
         description: >
           mssp_file_parameters file_type of the governing file (initial,
-          quarterly, benchmark), which matches the file's alr_file_type.
+          quarterly, benchmark), which matches the file's alr_file_type. Never
+          settlement: a settlement AALR governs no month (TUVA-113).
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [aco_id, enroll_month]
+
+  - name: aalr_settlement_population
+    description: >
+      The settlement population (TUVA-113): one row per beneficiary and
+      settlement (STLMT) AALR delivery, with that delivery's Table 1-1 row
+      (EnrollFlags, CMS-HCC scores, HCC flags, bene_psnyrs_dual), its
+      mssp_file_parameters period, its top TIN and NPI (Tables 1-2 and 1-4),
+      and its Table 1-6 and 1-9 fields, including the person-years
+      bene_psnyrs and bene_psnyrs_lis_dual, all joined on delivery_id. A
+      settlement AALR never governs a month, so these rows reach no other
+      model. CMS can ship a settlement embargoed (T0000000) and unembargoed
+      (T1111111); both are kept, and is_latest_delivery marks the latest.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+    columns:
+      - name: aco_id
+        description: ACO ID, the second dot-separated part of file_name (A<ACO>).
+      - name: t_stamp
+        description: The delivery's T-stamp (T0000000 embargoed, T1111111 unembargoed).
+      - name: delivery_id
+        description: >
+          The settlement delivery: file_name without its _1-<table>.csv
+          suffix. Every table on the row is joined on it.
+        data_tests:
+          - not_null
+      - name: is_latest_delivery
+        description: >
+          True on the rows of the latest T-stamp (text order) among the ACO
+          and performance year's settlement deliveries: the unembargoed
+          T1111111 copy when CMS delivered the settlement twice, else the only
+          copy. A beneficiary listed only in an earlier copy has no row with
+          it true.
+        data_tests:
+          - not_null
+      - name: period_start_date
+        description: >
+          mssp_file_parameters period start of the settlement row: 1 January
+          of the performance year. EnrollFlag1..12 are its twelve months.
+      - name: bene_psnyrs
+        description: >
+          Table 1-9 person-years, a fraction of a year (0.75 for 9 eligible
+          months). NULL when the delivery has no Table 1-9 row for the
+          beneficiary.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [delivery_id, bene_mbi_id]
 
   - name: aalr_history_filtered
     description: >

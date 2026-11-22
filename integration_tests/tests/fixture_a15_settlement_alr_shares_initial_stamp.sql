@@ -13,11 +13,14 @@
     P.A0000.ACO.AALR.D259999.T0000000_1-x.csv. Both parse to (A0000, 2025,
     Y2025, T0000000).
 
-    1. Every ALR file is classified by alr_file_type: the settlement as
-       settlement, the initial assignment as initial, AALR.Y2024 as benchmark,
-       the QALRs as quarterly.
-    2. The settlement has no mssp_file_parameters row (TUVA-113), so it has no
-       aalr_history rows and governs no month.
+    1. Every ALR file is classified by alr_file_type: both settlement
+       deliveries (T0000000 and A16's unembargoed T1111111) as settlement, the
+       initial assignment as initial, AALR.Y2024 as benchmark, the QALRs as
+       quarterly.
+    2. The settlement has an mssp_file_parameters row but never governs a
+       month (TUVA-113): it has no aalr_history rows and no
+       aalr_governing_file month (asserted for every settlement delivery in
+       A16). Its rows are in aalr_settlement_population (A16).
     3. 9TT0FK2XX14 is in both files: TIN 001000001 / NPI 1999900081 in the
        initial file, TIN 001000002 (EM 20) / NPI 1999900099, ADI_NATRANK 99
        and VA_SELECTION_ONLY 1 in the settlement. The initial file's rows
@@ -30,6 +33,7 @@
 with expected_type as (
 
     select 'P.A0000.ACO.AALR.Y2025.D259999.T0000000_1-1.csv' as file_name, 'settlement' as alr_file_type
+    union all select 'P.A0000.ACO.AALR.Y2025.D259999.T1111111_1-1.csv', 'settlement'
     union all select 'P.A0000.ACO.AALR.D259999.T0000000_1-1.csv', 'initial'
     union all select 'P.A0000.ACO.AALR.Y2024.D259999.T1111111_1-1.csv', 'benchmark'
     union all select 'P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv', 'quarterly'

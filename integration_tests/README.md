@@ -60,7 +60,8 @@ name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 | quarterly (QEXPU) | `QALR.2025Q1`..`2025Q3`, `T0100000`..`T0300000` | 2024-04.. to ..2025-09 |
 | redelivery | `QALR.2025Q3.D259999.T0310000` | 2024-10..2025-09 |
 | next performance year | `QALR.2026Q1.D269999.T0100000` | 2025-04..2026-03 |
-| settlement (STLMT) | `AALR.Y2025.D259999.T0000000`, the initial assignment's stamp | 2025 (not loaded until TUVA-113) |
+| settlement (STLMT) | `AALR.Y2025.D259999.T0000000`, the initial assignment's stamp | 2025 (governs no month) |
+| settlement, unembargoed | `AALR.Y2025.D259999.T1111111` | 2025 (governs no month) |
 
 The CCLF seeds are byte-identical to medicare_cclf_connector v1.0.0's own
 fixtures (same generator) for every table it reads except `enrollment`, and
@@ -76,8 +77,9 @@ tests do not assert the connector's current behaviour. For each beneficiary
 and month, the governing ALR is chosen within the earliest performance year
 whose files cover that month: the file ranked last in initial, Q1, Q2, Q3, Q4,
 benchmark (the benchmark governs every month it covers), and a later T-stamp
-of the same period wins. A beneficiary the governing file does not list is
-not enrolled for that month. The scenarios cover:
+of the same period wins. A settlement ALR never governs a month. A
+beneficiary the governing file does not list is not enrolled for that month.
+The scenarios cover:
 
 - a later quarterly ALR superseding earlier ones (A01) and the month
   precedence between initial, benchmark and quarterly files (A02, A03);
@@ -99,8 +101,12 @@ not enrolled for that month. The scenarios cover:
 - a settlement AALR shipped under the initial assignment's stamp (A15): it is
   classified as settlement, governs no month, and the initial file's Table
   1-2/1-4/1-6/1-9 values are not pooled with it. The settlement lists every
-  beneficiary assigned in 2025, so TUVA-113 has a settlement population to
-  work with.
+  beneficiary assigned in 2025;
+- the same settlement delivered again unembargoed (A16):
+  `aalr_settlement_population` keeps both deliveries, marks the later one
+  `is_latest_delivery`, and carries each delivery's own person-years, scores,
+  TIN/NPI and Table 1-6/1-9 values. Neither delivery governs a month or
+  reaches `aalr_history`.
 
 Tests for known connector bugs carry the Linear issue key as a tag and fail
 until the bug is fixed, e.g. `--select tag:tuva-110`. Every fixture test
