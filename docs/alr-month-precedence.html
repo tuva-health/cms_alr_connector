@@ -194,6 +194,8 @@ even if an earlier or later file lists them. A beneficiary the governing file li
   <p class="fine">These are the rows of the connector's <code>seeds/mssp_file_parameters.csv</code>. A file covers twelve months from its period start,
   up to its period end. <code>priority</code> puts the files of one performance year in order: the lower number wins, so the benchmark (1) beats Q4 (2), and the initial file (6) loses to every other file.
   A settlement row has no priority, because a settlement ALR never governs a month.
+  A benchmark ALR for a year the seed has no row for (an ACO past its agreement period's first year keeps that period's benchmark years)
+  covers its calendar year with the benchmark priority: the connector derives that row, and so does this page.
   The connector's CI checks that this copy matches the seed.</p>
   <details>
     <summary>Show all rows</summary>
@@ -329,9 +331,17 @@ const ALR = (function (seedRows) {
   // that is not the settlement.
   function seedRow(py, period, fileType) {
     const r = SEED.find(s => s.py === py && s.period === period &&
-      (fileType ? s.type === fileType : s.type !== 'settlement'));
+      (fileType ? s.type === fileType : s.type !== 'settlement')) || derivedBenchmark(py, period, fileType);
     if (!r) throw new Error('No mssp_file_parameters row for PY' + py + ' ' + period + (fileType ? ' ' + fileType : ''));
     return r;
+  }
+  // aalr_file_parameters (TUVA-164): a benchmark AALR (Y-year before its PY)
+  // with no seed row covers calendar Y-year, with the seed's benchmark priority.
+  function derivedBenchmark(py, period, fileType) {
+    const m = /^Y(\d{4})$/.exec(period);
+    if (!m || Number(m[1]) >= py || (fileType && fileType !== 'benchmark')) return undefined;
+    const priority = Math.max(...SEED.filter(s => s.type === 'benchmark').map(s => s.priority));
+    return { py, period, start: m[1] + '-01-01', end: m[1] + '-12-31', priority, type: 'benchmark' };
   }
   function row(file) { return seedRow(file.py, file.period, file.fileType); }
   // aalr_governing_file excludes settlement ALRs explicitly (TUVA-113).

@@ -44,9 +44,9 @@ select
     , settlement.t_stamp = max(settlement.t_stamp) over (
         partition by settlement.aco_id, settlement.performance_year
       ) as is_latest_delivery
-    , mfp.report_year
-    , mfp.period_start_date
-    , mfp.period_end_date
+    , afp.report_year
+    , afp.period_start_date
+    , afp.period_end_date
     , tt.MASTER_ID as TOP_TIN
     , tt.B_EM_LINE_CNT_T as TIN_EM_COUNT
     , tn.NPI_USED as TOP_NPI
@@ -58,10 +58,12 @@ select
     , bu.BENE_PSNYRS_LIS_DUAL
     , bu.BENE_PSNYRS
 from settlement
-left join {{ ref('mssp_file_parameters') }} as mfp
-    on settlement.performance_year = mfp.performance_year
-   and settlement.file_period = mfp.file_period
-   and settlement.alr_file_type = mfp.file_type
+-- aalr_file_parameters (TUVA-164): a settlement with no row keeps its rows here, with a NULL period, and the
+-- alr_file_without_file_parameters test names it.
+left join {{ ref('aalr_file_parameters') }} as afp
+    on settlement.performance_year = afp.performance_year
+   and settlement.file_period = afp.file_period
+   and settlement.alr_file_type = afp.file_type
 left join top_tin as tt
     on settlement.bene_mbi_id = tt.BENE_MBI_ID
    and settlement.delivery_id = tt.DELIVERY_ID

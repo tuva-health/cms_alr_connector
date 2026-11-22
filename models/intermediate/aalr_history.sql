@@ -77,6 +77,7 @@ aalr_exploded_by_enrollflag AS (
 ),
 
 -- Calculate enrollment month for each record based on the period the file is for and the month number from the enrollflag.
+-- The parameters come from aalr_file_parameters (the mssp_file_parameters seed plus derived benchmark rows, TUVA-164).
 -- The parameters row must match the file's type too: a settlement AALR (AALR.Y2025.D259999 for PY2025) has the
 -- initial assignment's performance year and period, and would otherwise be read as the PY's initial file
 -- (TUVA-152). A settlement AALR never governs a month (TUVA-113), so it is filtered out here (and in
@@ -84,7 +85,7 @@ aalr_exploded_by_enrollflag AS (
 -- row off rank 1 in aalr_history_filtered. It is exposed as aalr_settlement_population instead.
 add_calculated_month AS (
   SELECT
-    CAST({{ dbt.dateadd('month', 'aalr.month_number - 1', 'mfp.period_start_date') }} AS DATE) AS enroll_month, -- Date add period_start_date + month number of flag - 1
+    CAST({{ dbt.dateadd('month', 'aalr.month_number - 1', 'afp.period_start_date') }} AS DATE) AS enroll_month, -- Date add period_start_date + month number of flag - 1
     aalr.month_number,
     aalr.enroll_flag,
     aalr.bene_mbi_id,
@@ -131,16 +132,19 @@ add_calculated_month AS (
     aalr.PERFORMANCE_YEAR,
     aalr.ITERATION,
     aalr.DELIVERY_ID,
-    mfp.report_year,
-    mfp.period_start_date,
-    mfp.period_end_date,
-    mfp.priority,
+    afp.report_year,
+    afp.period_start_date,
+    afp.period_end_date,
+    afp.priority,
     aalr.ALR_FILE_TYPE as alr_file_type
   FROM aalr_exploded_by_enrollflag as aalr
-  LEFT JOIN {{ ref('mssp_file_parameters') }} as mfp
-    ON aalr.PERFORMANCE_YEAR = mfp.PERFORMANCE_YEAR
-    AND aalr.file_period = mfp.file_period
-    AND aalr.ALR_FILE_TYPE = mfp.file_type
+  -- aalr_file_parameters is the seed plus derived benchmark rows (TUVA-164). A file with no row there has no
+  -- period to map its EnrollFlags onto: it would give 12 rows per beneficiary with a NULL enroll_month, so the
+  -- inner join leaves it out, and the alr_file_without_file_parameters test names it.
+  INNER JOIN {{ ref('aalr_file_parameters') }} as afp
+    ON aalr.PERFORMANCE_YEAR = afp.PERFORMANCE_YEAR
+    AND aalr.file_period = afp.file_period
+    AND aalr.ALR_FILE_TYPE = afp.file_type
   WHERE coalesce(aalr.ALR_FILE_TYPE, '') <> 'settlement'
 ),
 
@@ -151,7 +155,7 @@ add_calculated_month AS (
 -- Get latest beneficiary turnover reason for the year (if a member leaves, comes back, and leaves again, we'll get the latest)
 beneficiary_turnover AS (
   SELECT
-    row_number() OVER(PARTITION BY bt.BENE_MBI_ID, bt.performance_year ORDER BY mfp.priority, bt.ITERATION DESC) AS row_number,
+    row_number() OVER(PARTITION BY bt.BENE_MBI_ID, bt.performance_year ORDER BY afp.priority, bt.ITERATION DESC) AS row_number,
     bt.bene_mbi_id,
     bt.bene_hic_num,
     bt.bene_1st_name,
@@ -172,10 +176,11 @@ beneficiary_turnover AS (
     bt.PERFORMANCE_YEAR,
     bt.ITERATION
   FROM {{ ref('stg_aalr5_beneficiary_turnover') }} as bt
-  LEFT JOIN {{ ref('mssp_file_parameters') }} as mfp
-    ON bt.PERFORMANCE_YEAR = mfp.PERFORMANCE_YEAR
-    AND bt.file_period = mfp.file_period
-    AND bt.ALR_FILE_TYPE = mfp.file_type
+  -- The same parameters as Table 1-1 (TUVA-164): a file with none feeds no turnover reason either.
+  INNER JOIN {{ ref('aalr_file_parameters') }} as afp
+    ON bt.PERFORMANCE_YEAR = afp.PERFORMANCE_YEAR
+    AND bt.file_period = afp.file_period
+    AND bt.ALR_FILE_TYPE = afp.file_type
   -- A settlement AALR's Table 1-5, if CMS ships one, stays out like its Table 1-1 (TUVA-113).
   WHERE coalesce(bt.ALR_FILE_TYPE, '') <> 'settlement'
 ),

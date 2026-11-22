@@ -21,9 +21,12 @@
     and 1-9). CCLF's data_sharing_flag comes from CCLF8 in
     medicare_cclf_connector and does not depend on it.
 
-    A file's mssp_file_parameters row matches its performance year, period
-    and type (alr_file_type from extract_file_metadata): a settlement AALR has
-    the initial assignment's performance year and period (TUVA-152).
+    A file's parameters row (aalr_file_parameters: the mssp_file_parameters
+    seed plus a derived row for each benchmark AALR the seed lacks, TUVA-164)
+    matches its performance year, period and type (alr_file_type from
+    extract_file_metadata): a settlement AALR has the initial assignment's
+    performance year and period (TUVA-152). A file with no row covers no
+    month here; the alr_file_without_file_parameters test names it.
 
     A settlement AALR never governs a month (TUVA-113). It is excluded here
     explicitly, not by its seed row (whose priority is blank), and is exposed
@@ -64,23 +67,23 @@ with delivered_files as (
 
     select
           delivered_files.aco_id
-        , cast({{ dbt.dateadd('month', 'month_numbers.generated_number - 1', 'mfp.period_start_date') }} as date) as enroll_month
+        , cast({{ dbt.dateadd('month', 'month_numbers.generated_number - 1', 'afp.period_start_date') }} as date) as enroll_month
         , delivered_files.performance_year
         , delivered_files.file_period
         , delivered_files.t_stamp
         , delivered_files.file_name
         , delivered_files.delivery_id
-        , mfp.performance_year as performance_year_number
-        , mfp.priority
-        , mfp.file_type as alr_file_type
+        , afp.performance_year as performance_year_number
+        , afp.priority
+        , afp.file_type as alr_file_type
     from delivered_files
-    inner join {{ ref('mssp_file_parameters') }} as mfp
-        on delivered_files.performance_year = mfp.performance_year
-       and delivered_files.file_period = mfp.file_period
-       and delivered_files.alr_file_type = mfp.file_type
+    inner join {{ ref('aalr_file_parameters') }} as afp
+        on delivered_files.performance_year = afp.performance_year
+       and delivered_files.file_period = afp.file_period
+       and delivered_files.alr_file_type = afp.file_type
     cross join month_numbers
-    where cast({{ dbt.dateadd('month', 'month_numbers.generated_number - 1', 'mfp.period_start_date') }} as date)
-          <= cast(mfp.period_end_date as date)
+    where cast({{ dbt.dateadd('month', 'month_numbers.generated_number - 1', 'afp.period_start_date') }} as date)
+          <= cast(afp.period_end_date as date)
 
 )
 

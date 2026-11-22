@@ -49,7 +49,7 @@ dates fall in an invented 2023-10 to 2026-03 window. No real beneficiary or
 provider data is committed, and fixture files must not be hand-edited: change
 and rerun the generator instead.
 
-The ALR seeds hold ten deliveries for one ACO. `file_name` is the inner CSV
+The ALR seeds hold eleven deliveries for one ACO. `file_name` is the inner CSV
 name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 `directory_name` the nested zip that holds it:
 
@@ -62,7 +62,8 @@ name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 | next performance year | `QALR.2026Q1.D269999.T0100000` | 2025-04..2026-03 |
 | settlement (STLMT) | `AALR.Y2025.D259999.T0000000`, the initial assignment's stamp | 2025 (governs no month) |
 | settlement, unembargoed | `AALR.Y2025.D259999.T1111111` | 2025 (governs no month) |
-| benchmark with no `mssp_file_parameters` row | `AALR.Y2024.D289999.T1111111` | 2024 (governs no month) |
+| benchmark with no `mssp_file_parameters` row | `AALR.Y2024.D289999.T1111111` | 2024, derived (governs no month) |
+| unclassified (Y-year after its PY) | `AALR.Y2026.D259999.T2222222` | none: no parameters row can match |
 
 The CCLF seeds are byte-identical to medicare_cclf_connector v1.0.0's own
 fixtures (same generator) for every table it reads except `enrollment`, and
@@ -110,10 +111,16 @@ The scenarios cover:
   reaches `aalr_history`;
 - a benchmark AALR with no `mssp_file_parameters` row (A17):
   `AALR.Y2024.D289999.T1111111`, benchmark year 2024 for performance year
-  2028, which the seed has no row for. Its `aalr_history` rows have a month
-  in 2024 or are absent, and none has a NULL `enroll_month` or repeats per
-  beneficiary and month. It governs no month, since PY2025's files cover
-  2024. Only `9TT0FK2XX15` is listed in it.
+  2028, which the seed has no row for. `aalr_file_parameters` derives its
+  parameters, so its `aalr_history` rows are 2024-01..12, once per
+  beneficiary and month, none with a NULL `enroll_month`. It governs no
+  month, since PY2025's files cover 2024. Its Table 1-1 lists only
+  `9TT0FK2XX15`;
+- a file no parameters row can match (A18): `AALR.Y2026.D259999.T2222222`,
+  whose Y-year is after its performance year, so `alr_file_type` is NULL. The
+  connector's `alr_file_without_file_parameters` test names exactly this
+  file. `dbt_project.yml` sets that test to `warn` here, because the fixtures
+  include the file on purpose. The file reaches no model past staging.
 
 Tests for known connector bugs carry the Linear issue key as a tag and fail
 until the bug is fixed, e.g. `--select tag:tuva-110`. Every fixture test

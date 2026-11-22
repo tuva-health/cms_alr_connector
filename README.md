@@ -105,6 +105,25 @@ The fourth part is the report type (`QALR` or `AALR`) and the fifth the report p
 
 The settlement sits beside them in its own model, `aalr_settlement_population`: one row per beneficiary and settlement delivery, with the delivery's Table 1-1 row (EnrollFlags, CMS-HCC scores, HCC flags), its top TIN and NPI (Tables 1-2 and 1-4, picked as for attribution), and its Table 1-6 and 1-9 fields, including the person-years `bene_psnyrs` and `bene_psnyrs_lis_dual`. Every table is joined on the delivery. CMS can deliver one settlement twice, embargoed (`T0000000`) and unembargoed (`T1111111`): both are kept, and `is_latest_delivery` marks the latest T-stamp's rows, the ones to use. Up to v1.1.1 a settlement AALR was read as the performance year's initial assignment (TUVA-152).
 
+#### Benchmark files:
+A benchmark AALR (`AALR.Y<yyyy>`, `<yyyy>` before the performance year) covers calendar year `<yyyy>`. The seed's benchmark rows are the three years before each performance year, which are the benchmark years only in the **first** performance year of an agreement period. Benchmark years are fixed for the whole agreement period:
+
+- 42 CFR 425.652(a)(9): in the second and later performance years the benchmark is adjusted, still taking into account "the 3 most recent years prior to the start of the agreement period" (425.601(a)(9) has the same wording for agreements from July 2019 to 2023).
+- CMS's Shared Savings and Losses, Assignment and Quality Performance Standard Methodology Specifications, §4.1.3: the annual adjustment is "based on the same 3 benchmark years". Appendix B, Table 9 gives an agreement starting in 2022: its PY2025 benchmark years are 2019 to 2021.
+- ALR and ASR User's Guide, Appendix Table 6: the Preliminary and Adjusted Historical Benchmark package (BNMRK, March of the performance year) has an "ALR for each BY". The 2026 report schedule sends the adjusted package to ACOs in an agreement period that began before the performance year, when their participant list, assignment methodology or the regulations changed.
+
+So an ACO past its agreement's first year gets benchmark AALRs for years the seed has no row for, for example `AALR.Y2021.D259999` for an agreement that started in 2024. The connector derives their parameters in `aalr_file_parameters`: calendar year `<yyyy>` and the seed's benchmark priority, the same as every benchmark row in the seed. Up to v1.1.1 such a file got 12 rows per beneficiary with a NULL `enroll_month` in `aalr_history`, which failed `aalr_history`'s uniqueness test and covered no month (TUVA-164).
+
+#### Files with no parameters row:
+Only benchmark parameters are derived. Quarterly and initial periods aren't calendar years. Any other file that matches no `mssp_file_parameters` row fails the `alr_file_without_file_parameters` test. That covers a quarterly or initial file for a performance year the seed doesn't cover yet, a settlement the seed has no row for, or a name `alr_file_type` can't classify. The failure lists each file's `delivery_id`, with the performance year, period and `alr_file_type` read from its name. The file reaches no model past staging, so its months are missing from `enrollment` until a release adds its seed row. To build anyway, downgrade the test in your project:
+
+```yaml
+data_tests:
+  cms_aalr_connector:
+    alr_file_without_file_parameters:
+      +severity: warn
+```
+
 #### Which file decides each month:
 Several ALRs cover the same months: the quarterly ALRs of a performance year overlap each other, the benchmark ALRs overlap the quarterlies, and the next performance year's reports overlap the current one. For each month the connector picks **one governing file** per ACO, and that file alone decides who is enrolled:
 
@@ -112,7 +131,7 @@ Several ALRs cover the same months: the quarterly ALRs of a performance year ove
 2. Within that year, take the **last file in the order initial < Q1 < Q2 < Q3 < Q4 < benchmark** (the `priority` column of `mssp_file_parameters`). The benchmark ALR is last only within its own performance year.
 3. If the same period was delivered more than once, the **later T-stamp** wins.
 
-Benchmark ALRs ship with the *following* performance year: PY2025 delivers Y2022..Y2024. Once an earlier performance year's own files cover a calendar year (PY2024 Q4 covers 2024), a later year's benchmark never governs those months. A benchmark governs only months that no file from an earlier performance year covers.
+Benchmark ALRs ship with a later performance year than the year they cover: in the first year of an agreement period, PY2025 delivers Y2022..Y2024 (see [Benchmark files](#benchmark-files) for later years). Once an earlier performance year's own files cover a calendar year (PY2024 Q4 covers 2024), a later year's benchmark never governs those months. A benchmark governs only months that no file from an earlier performance year covers. When the same benchmark year arrives with more than one performance year, the earliest performance year's copy governs.
 
 The governing file supplies all of the month's ALR-sourced fields: enrollment status, risk scores and HCC flags, demographics, TIN/NPI attribution, and the Table 1-6 and 1-9 fields. CCLF's `data_sharing_flag` is separate: it comes from the CCLF8 demographics in `medicare_cclf_connector`, so the choice of ALR doesn't affect it.
 

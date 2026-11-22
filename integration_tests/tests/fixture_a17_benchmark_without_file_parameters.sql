@@ -9,13 +9,14 @@
     Fixture scenario A17 (TUVA-164): a benchmark AALR with no
     mssp_file_parameters row, P.A0000.ACO.AALR.Y2024.D289999.T1111111_1-x.csv
     (performance year 2028, benchmark year 2024). The seed has no
-    (2028, Y2024, benchmark) row, so the file has no period_start_date to map
-    its EnrollFlag1..12 onto.
+    (2028, Y2024, benchmark) row; aalr_file_parameters derives one (calendar
+    2024, benchmark priority).
 
     1. None of the file's aalr_history rows has a NULL enroll_month, and none
        repeats per (beneficiary, month). Without a parameters row each
-       beneficiary gets 12 rows with a NULL enroll_month.
-    2. Any row the file does have falls in its benchmark year, calendar 2024.
+       beneficiary got 12 rows with a NULL enroll_month (up to v1.1.1).
+    2. The file has 12 rows for 9TT0FK2XX15, one for each month of its
+       benchmark year, calendar 2024.
     3. The file governs no month (PY2025's files cover 2024), so 9TT0FK2XX15,
        listed in it and in every PY2025 file, is enrolled exactly
        2023-10..2025-09.
@@ -70,6 +71,15 @@ select
 from a17_rows
 where enroll_month < cast('2024-01-01' as date)
    or enroll_month > cast('2024-12-01' as date)
+
+union all
+
+select
+      'expected 12 aalr_history rows, one per month of 2024' as failure
+    , '9TT0FK2XX15' as bene_mbi_id
+    , cast(null as date) as enroll_month
+from a17_rows
+having count(*) <> 12 or count(distinct enroll_month) <> 12
 
 union all
 

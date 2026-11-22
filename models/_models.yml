@@ -50,6 +50,34 @@ models:
           arguments:
             combination_of_columns: [bene_mbi_id, enroll_month, file_name]
 
+  - name: aalr_file_parameters
+    description: >
+      The parameters every ALR file is placed by (TUVA-164), one row per
+      (performance_year, file_period, file_type): the mssp_file_parameters
+      seed, plus a derived row for each delivered benchmark AALR the seed has
+      no row for (calendar year Y<yyyy>, the seed's benchmark priority).
+      Benchmark years are fixed for an agreement period, so an ACO past the
+      agreement's first year gets benchmark AALRs for years earlier than the
+      seed's PY-3..PY-1 rows. aalr_history, aalr_governing_file and
+      aalr_settlement_population join a file to it on performance year,
+      period and alr_file_type.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+    columns:
+      - name: parameter_source
+        description: >
+          seed for a mssp_file_parameters row, derived for a benchmark row
+          built from the file name.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [seed, derived]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [performance_year, file_period, file_type]
+
   - name: aalr_governing_file
     description: >
       The ALR that governs each enrollment month, one row per ACO and month: of
