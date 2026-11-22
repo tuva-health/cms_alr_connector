@@ -6,7 +6,8 @@
     'hcc_version', 'esrd_score', 'dis_score', 'agdu_score', 'agnd_score',
     'dem_esrd_score', 'dem_dis_score', 'dem_agdu_score', 'dem_agnd_score',
     'new_enrollee', 'lti_status', 'bene_race_cd', 'bene_psnyrs_dual',
-    'directory_name', 'file_name', 'FILE_TYPE', 'FILE_PERIOD', 'PERFORMANCE_YEAR', 'ITERATION'
+    'directory_name', 'file_name', 'FILE_TYPE', 'FILE_PERIOD', 'PERFORMANCE_YEAR', 'ITERATION',
+    'ALR_FILE_TYPE', 'DELIVERY_ID'
 ] %}
 {% for i in range(1, 121) %}{% do exclude_cols.append('hcc_col_' ~ i) %}{% endfor %}
 {% for i in range(1, 13) %}{% do exclude_cols.append('bene_rsk_r_scre_' ~ '%02d' % i) %}{% endfor %}
@@ -69,11 +70,17 @@ aalr_exploded_by_enrollflag AS (
         FILE_TYPE,
         FILE_PERIOD,
         PERFORMANCE_YEAR,
-        ITERATION
+        ITERATION,
+        ALR_FILE_TYPE,
+        DELIVERY_ID
     FROM aalr_unpivoted
 ),
 
--- Calculate enrollment month for each record based on the period the file is for and the month number from the enrollflag
+-- Calculate enrollment month for each record based on the period the file is for and the month number from the enrollflag.
+-- The parameters row must match the file's type too: a settlement AALR (AALR.Y2025.D259999 for PY2025) has the
+-- initial assignment's performance year and period, and would otherwise be read as the PY's initial file
+-- (TUVA-152). Settlement AALRs have no mssp_file_parameters rows and stay out of aalr_history until TUVA-113
+-- decides where they sit in the month precedence; they remain in the staging models.
 add_calculated_month AS (
   SELECT
     CAST({{ dbt.dateadd('month', 'aalr.month_number - 1', 'mfp.period_start_date') }} AS DATE) AS enroll_month, -- Date add period_start_date + month number of flag - 1
@@ -122,21 +129,25 @@ add_calculated_month AS (
     aalr.FILE_PERIOD,
     aalr.PERFORMANCE_YEAR,
     aalr.ITERATION,
+    aalr.DELIVERY_ID,
     mfp.report_year,
     mfp.period_start_date,
     mfp.period_end_date,
     mfp.priority,
-    mfp.file_type as alr_file_type,
-    {{ dbt.split_part('aalr.file_name', "'.'", 2) }} AS aco_id,
-    {{ dbt.split_part('aalr.ITERATION', "'_'", 1) }} AS t_stamp
+    aalr.ALR_FILE_TYPE as alr_file_type
   FROM aalr_exploded_by_enrollflag as aalr
-  LEFT JOIN {{ ref('mssp_file_parameters') }} as mfp ON aalr.PERFORMANCE_YEAR = mfp.PERFORMANCE_YEAR AND aalr.file_period = mfp.file_period
+  LEFT JOIN {{ ref('mssp_file_parameters') }} as mfp
+    ON aalr.PERFORMANCE_YEAR = mfp.PERFORMANCE_YEAR
+    AND aalr.file_period = mfp.file_period
+    AND aalr.ALR_FILE_TYPE = mfp.file_type
+  WHERE coalesce(aalr.ALR_FILE_TYPE, '') <> 'settlement'
 ),
 
 -- Rank each beneficiary's TINs (MASTER_ID) by E&M line count, and each TIN's
--- NPIs by PCS count, within one delivery: (aco_id, performance year, file
--- period, t_stamp), where t_stamp is ITERATION without its _1-<table> suffix,
--- as in aalr_governing_file (TUVA-108).
+-- NPIs by PCS count, within one delivery (TUVA-108): DELIVERY_ID, the file
+-- name without its _1-<table>.csv suffix. Not (aco_id, performance year, file
+-- period, t_stamp): a settlement AALR and the initial assignment can share all
+-- four (TUVA-152).
 -- A plain row_number() + rn = 1, not dbt_utils.deduplicate: its default
 -- implementation (used on DuckDB) re-joins the ranked rows with a NATURAL
 -- JOIN on every column, and NULL = NULL never matches, so every row with a
@@ -148,15 +159,8 @@ add_calculated_month AS (
 ranked_tin AS (
   SELECT
     tin.*,
-    {{ dbt.split_part('tin.file_name', "'.'", 2) }} AS aco_id,
-    {{ dbt.split_part('tin.ITERATION', "'_'", 1) }} AS t_stamp,
     row_number() OVER (
-      PARTITION BY
-        tin.BENE_MBI_ID,
-        {{ dbt.split_part('tin.file_name', "'.'", 2) }},
-        tin.PERFORMANCE_YEAR,
-        tin.file_period,
-        {{ dbt.split_part('tin.ITERATION', "'_'", 1) }}
+      PARTITION BY tin.BENE_MBI_ID, tin.DELIVERY_ID
       ORDER BY tin.B_EM_LINE_CNT_T DESC NULLS LAST, tin.MASTER_ID ASC NULLS LAST
     ) AS rn
   FROM {{ ref('stg_aalr2_assigned_beneficiaries_tin') }} AS tin
@@ -170,16 +174,8 @@ top_tin AS (
 ranked_npi AS (
   SELECT
     npi.*,
-    {{ dbt.split_part('npi.file_name', "'.'", 2) }} AS aco_id,
-    {{ dbt.split_part('npi.ITERATION', "'_'", 1) }} AS t_stamp,
     row_number() OVER (
-      PARTITION BY
-        npi.BENE_MBI_ID,
-        {{ dbt.split_part('npi.file_name', "'.'", 2) }},
-        npi.PERFORMANCE_YEAR,
-        npi.file_period,
-        {{ dbt.split_part('npi.ITERATION', "'_'", 1) }},
-        npi.MASTER_ID
+      PARTITION BY npi.BENE_MBI_ID, npi.DELIVERY_ID, npi.MASTER_ID
       ORDER BY npi.PCS_COUNT DESC NULLS LAST, npi.NPI_USED ASC NULLS LAST
     ) AS rn
   FROM {{ ref('stg_aalr4_assigned_beneficiaries_tin_npi') }} AS npi
@@ -214,7 +210,12 @@ beneficiary_turnover AS (
     bt.PERFORMANCE_YEAR,
     bt.ITERATION
   FROM {{ ref('stg_aalr5_beneficiary_turnover') }} as bt
-  LEFT JOIN {{ ref('mssp_file_parameters') }} as mfp ON bt.PERFORMANCE_YEAR = mfp.PERFORMANCE_YEAR AND bt.file_period = mfp.file_period
+  LEFT JOIN {{ ref('mssp_file_parameters') }} as mfp
+    ON bt.PERFORMANCE_YEAR = mfp.PERFORMANCE_YEAR
+    AND bt.file_period = mfp.file_period
+    AND bt.ALR_FILE_TYPE = mfp.file_type
+  -- A settlement AALR's Table 1-5, if CMS ships one, waits for TUVA-113 like its Table 1-1.
+  WHERE coalesce(bt.ALR_FILE_TYPE, '') <> 'settlement'
 ),
 
 latest_beneficiary_turnover AS (
@@ -291,6 +292,7 @@ SELECT
   acm.FILE_PERIOD,
   acm.PERFORMANCE_YEAR,
   acm.ITERATION,
+  acm.DELIVERY_ID,
   acm.report_year,
   acm.period_start_date,
   acm.period_end_date,
@@ -319,31 +321,20 @@ FROM add_calculated_month as acm
 -- for the beneficiary leaves them NULL, even when an earlier one had them.
 LEFT JOIN top_tin as tt
   ON acm.BENE_MBI_ID = tt.BENE_MBI_ID
-  AND acm.aco_id = tt.aco_id
-  AND acm.PERFORMANCE_YEAR = tt.PERFORMANCE_YEAR
-  AND acm.FILE_PERIOD = tt.FILE_PERIOD
-  AND acm.t_stamp = tt.t_stamp
+  AND acm.DELIVERY_ID = tt.DELIVERY_ID
 LEFT JOIN top_npi AS tn
   ON acm.BENE_MBI_ID = tn.BENE_MBI_ID
   -- Only grab NPIs from the top TIN (it's possible an individual NPI NOT assigned to the top TIN has the most visits)
   AND tt.MASTER_ID = tn.MASTER_ID
-  AND acm.aco_id = tn.aco_id
-  AND acm.PERFORMANCE_YEAR = tn.PERFORMANCE_YEAR
-  AND acm.FILE_PERIOD = tn.FILE_PERIOD
-  AND acm.t_stamp = tn.t_stamp
+  AND acm.DELIVERY_ID = tn.DELIVERY_ID
 -- Tables 1-6 and 1-9 likewise come from the Table 1-1 row's own delivery, so
--- a redelivered period doesn't multiply its rows (one per delivery).
+-- a redelivered period, or a settlement AALR stamped like the initial
+-- assignment (TUVA-152), doesn't multiply its rows.
 LEFT JOIN {{ ref('stg_aalr6_beneficiaries_assignable_or_voluntary') }} as baov
   ON acm.BENE_MBI_ID = baov.BENE_MBI_ID
-  AND acm.aco_id = {{ dbt.split_part('baov.file_name', "'.'", 2) }}
-  AND acm.PERFORMANCE_YEAR = baov.PERFORMANCE_YEAR
-  AND acm.FILE_PERIOD = baov.FILE_PERIOD
-  AND acm.t_stamp = {{ dbt.split_part('baov.ITERATION', "'_'", 1) }}
+  AND acm.DELIVERY_ID = baov.DELIVERY_ID
 LEFT JOIN {{ ref('stg_aalr9_beneficiaries_underserved')}} as bu
   ON acm.BENE_MBI_ID = bu.BENE_MBI_ID
-  AND acm.aco_id = {{ dbt.split_part('bu.file_name', "'.'", 2) }}
-  AND acm.PERFORMANCE_YEAR = bu.PERFORMANCE_YEAR
-  AND acm.FILE_PERIOD = bu.FILE_PERIOD
-  AND acm.t_stamp = {{ dbt.split_part('bu.ITERATION', "'_'", 1) }}
+  AND acm.DELIVERY_ID = bu.DELIVERY_ID
 LEFT JOIN latest_beneficiary_turnover as lbt
   ON acm.BENE_MBI_ID = lbt.BENE_MBI_ID AND acm.performance_year = lbt.performance_year

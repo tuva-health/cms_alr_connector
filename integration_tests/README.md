@@ -49,7 +49,7 @@ dates fall in an invented 2023-10 to 2026-03 window. No real beneficiary or
 provider data is committed, and fixture files must not be hand-edited: change
 and rerun the generator instead.
 
-The ALR seeds hold seven deliveries for one ACO. `file_name` is the inner CSV
+The ALR seeds hold eight deliveries for one ACO. `file_name` is the inner CSV
 name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 `directory_name` the nested zip that holds it:
 
@@ -60,6 +60,7 @@ name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 | quarterly (QEXPU) | `QALR.2025Q1`..`2025Q3`, `T0100000`..`T0300000` | 2024-04.. to ..2025-09 |
 | redelivery | `QALR.2025Q3.D259999.T0310000` | 2024-10..2025-09 |
 | next performance year | `QALR.2026Q1.D269999.T0100000` | 2025-04..2026-03 |
+| settlement (STLMT) | `AALR.Y2025.D259999.T0000000`, the initial assignment's stamp | 2025 (not loaded until TUVA-113) |
 
 The CCLF seeds are byte-identical to medicare_cclf_connector v1.0.0's own
 fixtures (same generator) for every table it reads except `enrollment`, and
@@ -94,7 +95,12 @@ not enrolled for that month. The scenarios cover:
   beneficiary, listed in every delivery with one code throughout, whose
   performance year 2025 rows carry `dis_score` / `agdu_score` (A14). With
   them every enrollment type has assigned, scored 2025 member-months, which
-  a client project's per-type benchmark cap needs.
+  a client project's per-type benchmark cap needs;
+- a settlement AALR shipped under the initial assignment's stamp (A15): it is
+  classified as settlement, governs no month, and the initial file's Table
+  1-2/1-4/1-6/1-9 values are not pooled with it. The settlement lists every
+  beneficiary assigned in 2025, so TUVA-113 has a settlement population to
+  work with.
 
 Tests for known connector bugs carry the Linear issue key as a tag and fail
 until the bug is fixed, e.g. `--select tag:tuva-110`. Every fixture test

@@ -38,7 +38,9 @@ models:
     description: >
       Combined table of all historical assignment list reports, pivoted to one
       row per beneficiary, month and Table 1-1 file. Tables 1-2, 1-4, 1-6 and
-      1-9 are joined from the same delivery as the Table 1-1 row.
+      1-9 are joined from the same delivery as the Table 1-1 row (delivery_id).
+      Settlement AALRs (alr_file_type settlement) are left out until TUVA-113
+      gives them mssp_file_parameters rows.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
@@ -54,9 +56,8 @@ models:
       performance year, then the lowest mssp_file_parameters priority (benchmark
       last within its performance year), then the latest T-stamp. Benchmark ALRs
       ship with the following performance year, so one governs only months no
-      earlier performance year's file covers. Join any ALR table to it on (aco_id,
-      performance_year, file_period, t_stamp) to read that table from the
-      governing file.
+      earlier performance year's file covers. Join any ALR table to it on
+      delivery_id to read that table from the governing file.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
@@ -73,10 +74,18 @@ models:
         description: Delivery T-stamp of the governing file, ITERATION without its _1-<table> suffix (e.g. T0310000).
       - name: file_name
         description: The governing file's Table 1-1 file name.
+      - name: delivery_id
+        description: >
+          The governing file's delivery, file_name without its _1-<table>.csv
+          suffix (the staging models' delivery_id). Unlike (aco_id,
+          performance_year, file_period, t_stamp), it tells apart a settlement
+          AALR and an initial assignment shipped under one T-stamp.
       - name: priority
         description: mssp_file_parameters priority of the governing file.
       - name: alr_file_type
-        description: mssp_file_parameters file_type of the governing file (initial, quarterly, benchmark).
+        description: >
+          mssp_file_parameters file_type of the governing file (initial,
+          quarterly, benchmark), which matches the file's alr_file_type.
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
@@ -201,7 +210,10 @@ unit_tests:
           'AALR' as file_type,
           '2023Q4' as file_period,
           '2023' as performance_year,
-          'T0000000_1-1' as iteration
+          'T0000000_1-1' as iteration,
+          -- AALR with a quarterly period token: neither annual shape, so unclassified
+          null as alr_file_type,
+          'P.A0001.ACO.AALR.2023Q4.D231001.T0000000' as delivery_id
 
   - name: enrollment_keeps_enroll_flag_drops_not_eligible
     description: >

@@ -21,10 +21,16 @@
     and 1-9). CCLF's data_sharing_flag comes from CCLF8 in
     medicare_cclf_connector and does not depend on it.
 
+    A file's mssp_file_parameters row matches its performance year, period
+    and type (alr_file_type from extract_file_metadata). A settlement AALR has
+    the initial assignment's performance year and period but no parameters
+    row, so it governs no month until TUVA-113 places it (TUVA-152).
+
     One row per (aco_id, enroll_month). To take any ALR table from the
-    governing file, join on (aco_id, performance_year, file_period, t_stamp),
-    deriving aco_id and t_stamp from that table's file_name and ITERATION the
-    same way as below.
+    governing file, join on delivery_id (that table's file_name without its
+    _1-<table>.csv suffix, the staging models' DELIVERY_ID). (aco_id,
+    performance_year, file_period, t_stamp) is not enough: a settlement AALR
+    and the initial assignment can share all four.
 */
 
 with delivered_files as (
@@ -35,6 +41,8 @@ with delivered_files as (
         , file_period
         , {{ dbt.split_part('iteration', "'_'", 1) }} as t_stamp
         , file_name
+        , delivery_id
+        , alr_file_type
     from {{ ref('stg_aalr1_assigned_beneficiaries') }}
 
 )
@@ -54,6 +62,7 @@ with delivered_files as (
         , delivered_files.file_period
         , delivered_files.t_stamp
         , delivered_files.file_name
+        , delivered_files.delivery_id
         , mfp.performance_year as performance_year_number
         , mfp.priority
         , mfp.file_type as alr_file_type
@@ -61,6 +70,7 @@ with delivered_files as (
     inner join {{ ref('mssp_file_parameters') }} as mfp
         on delivered_files.performance_year = mfp.performance_year
        and delivered_files.file_period = mfp.file_period
+       and delivered_files.alr_file_type = mfp.file_type
     cross join month_numbers
     where cast({{ dbt.dateadd('month', 'month_numbers.generated_number - 1', 'mfp.period_start_date') }} as date)
           <= cast(mfp.period_end_date as date)
@@ -86,6 +96,7 @@ select
     , file_period
     , t_stamp
     , file_name
+    , delivery_id
     , priority
     , alr_file_type
 from ranked

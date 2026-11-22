@@ -62,7 +62,7 @@ medicare_cclf_connector → the_tuva_project (Tuva Core 1.0)
 - **`models/staging/`** (`stg_aalr{N}_*.sql`): Views over raw source tables. Each model corresponds to one CMS AALR report section (AALR1, AALR2, AALR4, AALR5, AALR6, AALR9). These only cast data types using custom macros — no business logic.
 
 - **`models/intermediate/`**: Three tables that handle the complex transformations:
-  - `aalr_history`: Joins all staging models, pivots 12 monthly `enrollflag` columns into individual rows (one per enrollment month), keeps the top TIN (by encounter count, ties to the lowest `MASTER_ID`) and, under it, the top NPI (by PCS count, ties to the lowest `NPI_USED`) from the same delivery as the Table 1-1 row (ACO, PY, period, T-stamp) with `row_number()` (not `dbt_utils.deduplicate()`, whose DuckDB implementation drops rows with NULL columns), and enriches with turnover/voluntary/underserved flags.
+  - `aalr_history`: Joins all staging models, pivots 12 monthly `enrollflag` columns into individual rows (one per enrollment month), keeps the top TIN (by encounter count, ties to the lowest `MASTER_ID`) and, under it, the top NPI (by PCS count, ties to the lowest `NPI_USED`) from the same delivery as the Table 1-1 row (`DELIVERY_ID`) with `row_number()` (not `dbt_utils.deduplicate()`, whose DuckDB implementation drops rows with NULL columns), and enriches with turnover/voluntary/underserved flags.
   - `aalr_governing_file`: One row per (ACO, `enroll_month`): the file that governs the month (earliest covering performance year, then the `priority` field from the `mssp_file_parameters` seed, then the later T-stamp; a benchmark, delivered with the following performance year, governs only months no earlier year's file covers). It supplies all ALR-sourced fields for the month; CCLF's `data_sharing_flag` comes from CCLF8 and is unaffected. See the README's "Which file decides each month".
   - `aalr_history_filtered`: Keeps only the `aalr_history` rows from each month's governing file, one per beneficiary-month.
 
@@ -71,7 +71,7 @@ medicare_cclf_connector → the_tuva_project (Tuva Core 1.0)
 
 ### Key Design Patterns
 
-**File metadata extraction**: The `extract_file_metadata()` macro parses AALR filenames to determine file type, performance year, iteration, and period. This metadata joins to the `mssp_file_parameters` seed to determine file priority (lower priority number = more recent/preferred file).
+**File metadata extraction**: The `extract_file_metadata()` macro parses AALR filenames to determine file type, performance year, iteration, and period, plus `ALR_FILE_TYPE` (`quarterly`, `initial`, `benchmark`, `settlement`) and `DELIVERY_ID` (the file name without `_1-<table>.csv`). Performance year, period and `ALR_FILE_TYPE` join to the `mssp_file_parameters` seed to determine file priority (lower priority number = more recent/preferred file). Join ALR tables to each other on `DELIVERY_ID`, never on (ACO, performance year, period, T-stamp): a settlement AALR (`AALR.Y2025.D259999` for PY2025) and the initial assignment can share all four (TUVA-152). Settlement AALRs have no seed rows yet, so `aalr_history` leaves them out (TUVA-113).
 
 **Multi-database compatibility**: All macros use dbt's adapter dispatch pattern (`{{ adapter.dispatch(...) }}`), with implementations for BigQuery, Databricks, Fabric, MotherDuck, Redshift, and Snowflake. Only DuckDB and Snowflake are supported: CI builds those two, and the other implementations are untested.
 
