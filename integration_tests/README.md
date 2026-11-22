@@ -49,7 +49,7 @@ dates fall in an invented 2023-10 to 2026-03 window. No real beneficiary or
 provider data is committed, and fixture files must not be hand-edited: change
 and rerun the generator instead.
 
-The ALR seeds hold eight deliveries for one ACO. `file_name` is the inner CSV
+The ALR seeds hold ten deliveries for one ACO. `file_name` is the inner CSV
 name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 `directory_name` the nested zip that holds it:
 
@@ -62,6 +62,7 @@ name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 | next performance year | `QALR.2026Q1.D269999.T0100000` | 2025-04..2026-03 |
 | settlement (STLMT) | `AALR.Y2025.D259999.T0000000`, the initial assignment's stamp | 2025 (governs no month) |
 | settlement, unembargoed | `AALR.Y2025.D259999.T1111111` | 2025 (governs no month) |
+| benchmark with no `mssp_file_parameters` row | `AALR.Y2024.D289999.T1111111` | 2024 (governs no month) |
 
 The CCLF seeds are byte-identical to medicare_cclf_connector v1.0.0's own
 fixtures (same generator) for every table it reads except `enrollment`, and
@@ -106,7 +107,13 @@ The scenarios cover:
   `aalr_settlement_population` keeps both deliveries, marks the later one
   `is_latest_delivery`, and carries each delivery's own person-years, scores,
   TIN/NPI and Table 1-6/1-9 values. Neither delivery governs a month or
-  reaches `aalr_history`.
+  reaches `aalr_history`;
+- a benchmark AALR with no `mssp_file_parameters` row (A17):
+  `AALR.Y2024.D289999.T1111111`, benchmark year 2024 for performance year
+  2028, which the seed has no row for. Its `aalr_history` rows have a month
+  in 2024 or are absent, and none has a NULL `enroll_month` or repeats per
+  beneficiary and month. It governs no month, since PY2025's files cover
+  2024. Only `9TT0FK2XX15` is listed in it.
 
 Tests for known connector bugs carry the Linear issue key as a tag and fail
 until the bug is fixed, e.g. `--select tag:tuva-110`. Every fixture test
