@@ -39,8 +39,9 @@ models:
       Combined table of all historical assignment list reports, pivoted to one
       row per beneficiary, month and Table 1-1 file. Tables 1-2, 1-4, 1-6 and
       1-9 are joined from the same delivery as the Table 1-1 row (delivery_id).
-      Settlement AALRs (alr_file_type settlement) are left out until TUVA-113
-      gives them mssp_file_parameters rows.
+      Settlement AALRs (alr_file_type settlement) are filtered out until
+      TUVA-113 gives them mssp_file_parameters rows and a place in the month
+      precedence.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}

@@ -10,9 +10,13 @@
                   year (BNMRK bundle: PY2025 ships Y2022..Y2024)
       settlement  AALR whose Y<yyyy> period is its own performance year (STLMT
                   bundle: AALR.Y2025.D259999 for PY2025)
-    Anything else is NULL. A settlement AALR parses to the same PERFORMANCE_YEAR
-    and FILE_PERIOD as that year's initial assignment, and CMS can ship both
-    under one T-stamp, so only ALR_FILE_TYPE and DELIVERY_ID tell them apart.
+    Anything else (a later Y<yyyy>, any other period token, a NULL FILE_NAME)
+    is NULL. The settlement rule assumes CMS stamps the settlement with its own
+    performance year's D<YY>, as the D259999 bundle for PY2025 does; one
+    stamped D<YY+1> would read as a benchmark. A settlement AALR parses to the
+    same PERFORMANCE_YEAR and FILE_PERIOD as that year's initial assignment,
+    and CMS can ship both under one T-stamp, so only ALR_FILE_TYPE and
+    DELIVERY_ID tell them apart.
 
     DELIVERY_ID is FILE_NAME without its _1-<table>.csv suffix, the same for
     every table of one delivery: join one ALR table to another on it.
@@ -36,7 +40,8 @@ split_part(FILE_NAME, '.', 4) as FILE_TYPE,
         WHEN split_part(FILE_NAME, '.', 5) NOT LIKE 'Y%' THEN NULL
         WHEN substring(split_part(FILE_NAME, '.', 5),2,4) = concat('20', substring(split_part(FILE_NAME, '.', 6),2,2))
           THEN 'settlement'
-        ELSE 'benchmark'
+        WHEN substring(split_part(FILE_NAME, '.', 5),2,4) < concat('20', substring(split_part(FILE_NAME, '.', 6),2,2))
+          THEN 'benchmark'
         END AS ALR_FILE_TYPE,
     split_part(FILE_NAME, '_', 1) AS DELIVERY_ID
 {% endmacro %}

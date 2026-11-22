@@ -79,8 +79,9 @@ aalr_exploded_by_enrollflag AS (
 -- Calculate enrollment month for each record based on the period the file is for and the month number from the enrollflag.
 -- The parameters row must match the file's type too: a settlement AALR (AALR.Y2025.D259999 for PY2025) has the
 -- initial assignment's performance year and period, and would otherwise be read as the PY's initial file
--- (TUVA-152). Settlement AALRs have no mssp_file_parameters rows and stay out of aalr_history until TUVA-113
--- decides where they sit in the month precedence; they remain in the staging models.
+-- (TUVA-152). Settlement AALRs have no mssp_file_parameters rows, so the LEFT JOIN would give them a NULL
+-- enroll_month: they are filtered out here (and in beneficiary_turnover) until TUVA-113 adds their rows and
+-- decides where they sit in the month precedence. They remain in the staging models.
 add_calculated_month AS (
   SELECT
     CAST({{ dbt.dateadd('month', 'aalr.month_number - 1', 'mfp.period_start_date') }} AS DATE) AS enroll_month, -- Date add period_start_date + month number of flag - 1

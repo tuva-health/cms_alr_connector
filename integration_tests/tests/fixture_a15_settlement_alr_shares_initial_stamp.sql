@@ -19,9 +19,10 @@
     2. The settlement has no mssp_file_parameters row (TUVA-113), so it has no
        aalr_history rows and governs no month.
     3. 9TT0FK2XX14 is in both files: TIN 001000001 / NPI 1999900081 in the
-       initial file, TIN 001000002 (EM 20) / NPI 1999900099 and ADI_NATRANK 99
-       in the settlement. The initial file's rows (2023-10..2024-09) come once
-       per month and carry the initial file's own Table 1-2/1-4/1-9 values.
+       initial file, TIN 001000002 (EM 20) / NPI 1999900099, ADI_NATRANK 99
+       and VA_SELECTION_ONLY 1 in the settlement. The initial file's rows
+       (2023-10..2024-09) come once per month and carry the initial file's own
+       Table 1-2/1-4/1-6/1-9 values.
        (aalr_history's unique_combination_of_columns test covers uniqueness
        for every beneficiary.)
 */
@@ -68,7 +69,8 @@ union all
 select
       'initial-file row not from its own delivery: tin ' || coalesce(top_tin, 'null')
         || ', npi ' || coalesce(top_npi, 'null')
-        || ', adi ' || coalesce(cast(adi_natrank as {{ dbt.type_string() }}), 'null') as failure
+        || ', adi ' || coalesce(cast(adi_natrank as {{ dbt.type_string() }}), 'null')
+        || ', va ' || coalesce(va_selection_only, 'null') as failure
     , file_name
     , enroll_month
 from {{ ref('aalr_history') }}
@@ -78,6 +80,7 @@ where bene_mbi_id = '9TT0FK2XX14'
         coalesce(top_tin, '') <> '001000001'
      or coalesce(top_npi, '') <> '1999900081'
      or coalesce(cast(adi_natrank as {{ dbt.type_string() }}), '') = '99'
+     or coalesce(va_selection_only, '') <> '0'
   )
 
 union all
