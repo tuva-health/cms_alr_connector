@@ -8,7 +8,9 @@
 /*
     Fixture scenario A16 (TUVA-113): the PY2025 settlement AALR delivered
     twice, embargoed (AALR.Y2025.D259999.T0000000) and unembargoed
-    (AALR.Y2025.D259999.T1111111).
+    (AALR.Y2025.D259999.T1111111). This is a hypothetical: the one real
+    STLMT bundle seen so far shipped the settlement AALR only in its
+    embargoed copy (the workbook was in both). It covers a redelivery.
 
     1. aalr_settlement_population has every Table 1-1 row of both deliveries
        (30 and 29 beneficiaries), on the PY2025 settlement period

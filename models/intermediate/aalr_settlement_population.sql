@@ -17,11 +17,12 @@
     and 1-9 fields, including the person-years bene_psnyrs and
     bene_psnyrs_lis_dual. Every table is joined on delivery_id.
 
-    CMS can deliver one settlement twice, embargoed (T0000000) and
-    unembargoed (T1111111), and both copies are kept. is_latest_delivery
-    marks the rows of each ACO and performance year's latest T-stamp (text
-    order), which is the unembargoed copy when both exist and the only copy
-    otherwise. A beneficiary listed only in an earlier copy has no
+    A STLMT bundle comes embargoed (T0000000) and unembargoed (T1111111). In
+    the one real bundle seen so far the settlement workbook shipped in both,
+    byte-identical, but the settlement AALR only in the embargoed copy. A
+    settlement AALR delivered more than once keeps every delivery here, and
+    is_latest_delivery marks the rows of each ACO and performance year's
+    latest T-stamp (text order), the only delivery's when there is one. A beneficiary listed only in an earlier copy has no
     is_latest_delivery row. A beneficiary with no Table 1-9 row in its
     delivery has NULL person-years.
 */

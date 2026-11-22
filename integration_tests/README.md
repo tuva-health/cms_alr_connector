@@ -104,7 +104,9 @@ The scenarios cover:
   classified as settlement, governs no month, and the initial file's Table
   1-2/1-4/1-6/1-9 values are not pooled with it. The settlement lists every
   beneficiary assigned in 2025;
-- the same settlement delivered again unembargoed (A16):
+- the same settlement AALR delivered again unembargoed (A16), a
+  hypothetical (in the one real bundle seen so far the settlement AALR
+  shipped only in the embargoed copy; only the workbook came in both):
   `aalr_settlement_population` keeps both deliveries, marks the later one
   `is_latest_delivery`, and carries each delivery's own person-years, scores,
   TIN/NPI and Table 1-6/1-9 values. Neither delivery governs a month or
