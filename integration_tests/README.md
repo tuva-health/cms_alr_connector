@@ -49,7 +49,7 @@ dates fall in an invented 2023-10 to 2026-03 window. No real beneficiary or
 provider data is committed, and fixture files must not be hand-edited: change
 and rerun the generator instead.
 
-The ALR seeds hold seven deliveries for one ACO. `file_name` is the inner CSV
+The ALR seeds hold eleven deliveries for one ACO. `file_name` is the inner CSV
 name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 `directory_name` the nested zip that holds it:
 
@@ -60,6 +60,10 @@ name CMS ships (`P.A0000.ACO.QALR.2025Q1.D259999.T0100000_1-1.csv`) and
 | quarterly (QEXPU) | `QALR.2025Q1`..`2025Q3`, `T0100000`..`T0300000` | 2024-04.. to ..2025-09 |
 | redelivery | `QALR.2025Q3.D259999.T0310000` | 2024-10..2025-09 |
 | next performance year | `QALR.2026Q1.D269999.T0100000` | 2025-04..2026-03 |
+| settlement (STLMT) | `AALR.Y2025.D259999.T0000000`, the initial assignment's stamp | 2025 (governs no month) |
+| settlement, unembargoed | `AALR.Y2025.D259999.T1111111` | 2025 (governs no month) |
+| benchmark with no `mssp_file_parameters` row | `AALR.Y2024.D289999.T1111111` | 2024, derived (governs no month) |
+| unclassified (Y-year after its PY) | `AALR.Y2026.D259999.T2222222` | none: no parameters row can match |
 
 The CCLF seeds are byte-identical to medicare_cclf_connector v1.0.0's own
 fixtures (same generator) for every table it reads except `enrollment`, and
@@ -75,8 +79,9 @@ tests do not assert the connector's current behaviour. For each beneficiary
 and month, the governing ALR is chosen within the earliest performance year
 whose files cover that month: the file ranked last in initial, Q1, Q2, Q3, Q4,
 benchmark (the benchmark governs every month it covers), and a later T-stamp
-of the same period wins. A beneficiary the governing file does not list is
-not enrolled for that month. The scenarios cover:
+of the same period wins. A settlement ALR never governs a month. A
+beneficiary the governing file does not list is not enrolled for that month.
+The scenarios cover:
 
 - a later quarterly ALR superseding earlier ones (A01) and the month
   precedence between initial, benchmark and quarterly files (A02, A03);
@@ -94,7 +99,30 @@ not enrolled for that month. The scenarios cover:
   beneficiary, listed in every delivery with one code throughout, whose
   performance year 2025 rows carry `dis_score` / `agdu_score` (A14). With
   them every enrollment type has assigned, scored 2025 member-months, which
-  a client project's per-type benchmark cap needs.
+  a client project's per-type benchmark cap needs;
+- a settlement AALR shipped under the initial assignment's stamp (A15): it is
+  classified as settlement, governs no month, and the initial file's Table
+  1-2/1-4/1-6/1-9 values are not pooled with it. The settlement lists every
+  beneficiary assigned in 2025;
+- the same settlement AALR delivered again unembargoed (A16), a
+  hypothetical (in the one real bundle seen so far the settlement AALR
+  shipped only in the embargoed copy; only the workbook came in both):
+  `aalr_settlement_population` keeps both deliveries, marks the later one
+  `is_latest_delivery`, and carries each delivery's own person-years, scores,
+  TIN/NPI and Table 1-6/1-9 values. Neither delivery governs a month or
+  reaches `aalr_history`;
+- a benchmark AALR with no `mssp_file_parameters` row (A17):
+  `AALR.Y2024.D289999.T1111111`, benchmark year 2024 for performance year
+  2028, which the seed has no row for. `aalr_file_parameters` derives its
+  parameters, so its `aalr_history` rows are 2024-01..12, once per
+  beneficiary and month, none with a NULL `enroll_month`. It governs no
+  month, since PY2025's files cover 2024. Its Table 1-1 lists only
+  `9TT0FK2XX15`;
+- a file no parameters row can match (A18): `AALR.Y2026.D259999.T2222222`,
+  whose Y-year is after its performance year, so `alr_file_type` is NULL. The
+  connector's `alr_file_without_file_parameters` test names exactly this
+  file. `dbt_project.yml` sets that test to `warn` here, because the fixtures
+  include the file on purpose. The file reaches no model past staging.
 
 Tests for known connector bugs carry the Linear issue key as a tag and fail
 until the bug is fixed, e.g. `--select tag:tuva-110`. Every fixture test

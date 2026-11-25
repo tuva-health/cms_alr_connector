@@ -128,6 +128,9 @@ For each month the CMS ALR connector picks <b>one governing file</b> per ACO, an
   <li>Within that year, take the <b>last file in the order initial &lt; Q1 &lt; Q2 &lt; Q3 &lt; Q4 &lt; benchmark</b>. The benchmark ALR is last only within its own performance year.</li>
   <li>If the same period was delivered more than once, the <b>later T-stamp</b> wins.</li>
 </ol>
+<p><b>A settlement ALR never governs a month.</b> CMS's final settlement bundle for a performance year carries an AALR for that year
+(<code>AALR.Y2025</code> for PY2025, covering 2025), CMS's final list of the beneficiaries the year is reconciled on. It sits beside the files above:
+the connector exposes it as the settlement population (<code>aalr_settlement_population</code>) and never uses it to decide who is enrolled.</p>
 <p>A file covers the twelve months its <code>EnrollFlag1</code>..<code>EnrollFlag12</code> map onto. <b>A beneficiary the governing file does not list is not enrolled for that month</b>,
 even if an earlier or later file lists them. A beneficiary the governing file lists with an EnrollFlag of 0 for a month is not enrolled that month either.</p>
 
@@ -190,6 +193,9 @@ even if an earlier or later file lists them. A beneficiary the governing file li
   <h2>The months each file covers</h2>
   <p class="fine">These are the rows of the connector's <code>seeds/mssp_file_parameters.csv</code>. A file covers twelve months from its period start,
   up to its period end. <code>priority</code> puts the files of one performance year in order: the lower number wins, so the benchmark (1) beats Q4 (2), and the initial file (6) loses to every other file.
+  A settlement row has no priority, because a settlement ALR never governs a month.
+  A benchmark ALR for a year the seed has no row for (an ACO past its agreement period's first year keeps that period's benchmark years)
+  covers its calendar year with the benchmark priority: the connector derives that row, and so does this page.
   The connector's CI checks that this copy matches the seed.</p>
   <details>
     <summary>Show all rows</summary>
@@ -211,6 +217,7 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2026, "report_year": 2026, "file_period": "2026Q2", "period_start_date": "2025-07-01", "period_end_date": "2026-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2026, "report_year": 2026, "file_period": "2026Q3", "period_start_date": "2025-10-01", "period_end_date": "2026-09-30", "priority": 3, "file_type": "quarterly"},
 {"performance_year": 2026, "report_year": 2026, "file_period": "2026Q4", "period_start_date": "2026-01-01", "period_end_date": "2026-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2026, "report_year": 2026, "file_period": "Y2026", "period_start_date": "2026-01-01", "period_end_date": "2026-12-31", "priority": null, "file_type": "settlement"},
 {"performance_year": 2025, "report_year": 2022, "file_period": "Y2022", "period_start_date": "2022-01-01", "period_end_date": "2022-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2025, "report_year": 2023, "file_period": "Y2023", "period_start_date": "2023-01-01", "period_end_date": "2023-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2025, "report_year": 2024, "file_period": "Y2024", "period_start_date": "2024-01-01", "period_end_date": "2024-12-31", "priority": 1, "file_type": "benchmark"},
@@ -219,6 +226,7 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2025, "report_year": 2025, "file_period": "2025Q2", "period_start_date": "2024-07-01", "period_end_date": "2025-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2025, "report_year": 2025, "file_period": "2025Q3", "period_start_date": "2024-10-01", "period_end_date": "2025-09-30", "priority": 3, "file_type": "quarterly"},
 {"performance_year": 2025, "report_year": 2025, "file_period": "2025Q4", "period_start_date": "2025-01-01", "period_end_date": "2025-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2025, "report_year": 2025, "file_period": "Y2025", "period_start_date": "2025-01-01", "period_end_date": "2025-12-31", "priority": null, "file_type": "settlement"},
 {"performance_year": 2024, "report_year": 2021, "file_period": "Y2021", "period_start_date": "2021-01-01", "period_end_date": "2021-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2024, "report_year": 2022, "file_period": "Y2022", "period_start_date": "2022-01-01", "period_end_date": "2022-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2024, "report_year": 2023, "file_period": "Y2023", "period_start_date": "2023-01-01", "period_end_date": "2023-12-31", "priority": 1, "file_type": "benchmark"},
@@ -227,6 +235,7 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2024, "report_year": 2024, "file_period": "2024Q2", "period_start_date": "2023-07-01", "period_end_date": "2024-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2024, "report_year": 2024, "file_period": "2024Q3", "period_start_date": "2023-10-01", "period_end_date": "2024-09-30", "priority": 3, "file_type": "quarterly"},
 {"performance_year": 2024, "report_year": 2024, "file_period": "2024Q4", "period_start_date": "2024-01-01", "period_end_date": "2024-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2024, "report_year": 2024, "file_period": "Y2024", "period_start_date": "2024-01-01", "period_end_date": "2024-12-31", "priority": null, "file_type": "settlement"},
 {"performance_year": 2023, "report_year": 2020, "file_period": "Y2020", "period_start_date": "2020-01-01", "period_end_date": "2020-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2023, "report_year": 2021, "file_period": "Y2021", "period_start_date": "2021-01-01", "period_end_date": "2021-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2023, "report_year": 2022, "file_period": "Y2022", "period_start_date": "2022-01-01", "period_end_date": "2022-12-31", "priority": 1, "file_type": "benchmark"},
@@ -235,6 +244,7 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2023, "report_year": 2023, "file_period": "2023Q2", "period_start_date": "2022-07-01", "period_end_date": "2023-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2023, "report_year": 2023, "file_period": "2023Q3", "period_start_date": "2022-10-01", "period_end_date": "2023-09-30", "priority": 3, "file_type": "quarterly"},
 {"performance_year": 2023, "report_year": 2023, "file_period": "2023Q4", "period_start_date": "2023-01-01", "period_end_date": "2023-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2023, "report_year": 2023, "file_period": "Y2023", "period_start_date": "2023-01-01", "period_end_date": "2023-12-31", "priority": null, "file_type": "settlement"},
 {"performance_year": 2022, "report_year": 2019, "file_period": "Y2019", "period_start_date": "2019-01-01", "period_end_date": "2019-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2022, "report_year": 2020, "file_period": "Y2020", "period_start_date": "2020-01-01", "period_end_date": "2020-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2022, "report_year": 2021, "file_period": "Y2021", "period_start_date": "2021-01-01", "period_end_date": "2021-12-31", "priority": 1, "file_type": "benchmark"},
@@ -243,6 +253,7 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2022, "report_year": 2022, "file_period": "2022Q2", "period_start_date": "2021-07-01", "period_end_date": "2022-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2022, "report_year": 2022, "file_period": "2022Q3", "period_start_date": "2021-10-01", "period_end_date": "2022-09-30", "priority": 3, "file_type": "quarterly"},
 {"performance_year": 2022, "report_year": 2022, "file_period": "2022Q4", "period_start_date": "2022-01-01", "period_end_date": "2022-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2022, "report_year": 2022, "file_period": "Y2022", "period_start_date": "2022-01-01", "period_end_date": "2022-12-31", "priority": null, "file_type": "settlement"},
 {"performance_year": 2021, "report_year": 2018, "file_period": "Y2018", "period_start_date": "2018-01-01", "period_end_date": "2018-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2021, "report_year": 2019, "file_period": "Y2019", "period_start_date": "2019-01-01", "period_end_date": "2019-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2021, "report_year": 2020, "file_period": "Y2020", "period_start_date": "2020-01-01", "period_end_date": "2020-12-31", "priority": 1, "file_type": "benchmark"},
@@ -251,6 +262,7 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2021, "report_year": 2021, "file_period": "2021Q2", "period_start_date": "2020-07-01", "period_end_date": "2021-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2021, "report_year": 2021, "file_period": "2021Q3", "period_start_date": "2020-10-01", "period_end_date": "2021-09-30", "priority": 3, "file_type": "quarterly"},
 {"performance_year": 2021, "report_year": 2021, "file_period": "2021Q4", "period_start_date": "2021-01-01", "period_end_date": "2021-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2021, "report_year": 2021, "file_period": "Y2021", "period_start_date": "2021-01-01", "period_end_date": "2021-12-31", "priority": null, "file_type": "settlement"},
 {"performance_year": 2020, "report_year": 2017, "file_period": "Y2017", "period_start_date": "2017-01-01", "period_end_date": "2017-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2020, "report_year": 2018, "file_period": "Y2018", "period_start_date": "2018-01-01", "period_end_date": "2018-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2020, "report_year": 2019, "file_period": "Y2019", "period_start_date": "2019-01-01", "period_end_date": "2019-12-31", "priority": 1, "file_type": "benchmark"},
@@ -259,6 +271,7 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2020, "report_year": 2020, "file_period": "2020Q2", "period_start_date": "2019-07-01", "period_end_date": "2020-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2020, "report_year": 2020, "file_period": "2020Q3", "period_start_date": "2019-10-01", "period_end_date": "2020-09-30", "priority": 3, "file_type": "quarterly"},
 {"performance_year": 2020, "report_year": 2020, "file_period": "2020Q4", "period_start_date": "2020-01-01", "period_end_date": "2020-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2020, "report_year": 2020, "file_period": "Y2020", "period_start_date": "2020-01-01", "period_end_date": "2020-12-31", "priority": null, "file_type": "settlement"},
 {"performance_year": 2019, "report_year": 2016, "file_period": "Y2016", "period_start_date": "2016-01-01", "period_end_date": "2016-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2019, "report_year": 2017, "file_period": "Y2017", "period_start_date": "2017-01-01", "period_end_date": "2017-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2019, "report_year": 2018, "file_period": "Y2018", "period_start_date": "2018-01-01", "period_end_date": "2018-12-31", "priority": 1, "file_type": "benchmark"},
@@ -267,6 +280,7 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2019, "report_year": 2019, "file_period": "2019Q2", "period_start_date": "2018-07-01", "period_end_date": "2019-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2019, "report_year": 2019, "file_period": "2019Q3", "period_start_date": "2018-10-01", "period_end_date": "2019-09-30", "priority": 3, "file_type": "quarterly"},
 {"performance_year": 2019, "report_year": 2019, "file_period": "2019Q4", "period_start_date": "2019-01-01", "period_end_date": "2019-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2019, "report_year": 2019, "file_period": "Y2019", "period_start_date": "2019-01-01", "period_end_date": "2019-12-31", "priority": null, "file_type": "settlement"},
 {"performance_year": 2018, "report_year": 2015, "file_period": "Y2015", "period_start_date": "2015-01-01", "period_end_date": "2015-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2018, "report_year": 2016, "file_period": "Y2016", "period_start_date": "2016-01-01", "period_end_date": "2016-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2018, "report_year": 2017, "file_period": "Y2017", "period_start_date": "2017-01-01", "period_end_date": "2017-12-31", "priority": 1, "file_type": "benchmark"},
@@ -275,6 +289,7 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2018, "report_year": 2018, "file_period": "2018Q2", "period_start_date": "2017-07-01", "period_end_date": "2018-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2018, "report_year": 2018, "file_period": "2018Q3", "period_start_date": "2017-10-01", "period_end_date": "2018-09-30", "priority": 3, "file_type": "quarterly"},
 {"performance_year": 2018, "report_year": 2018, "file_period": "2018Q4", "period_start_date": "2018-01-01", "period_end_date": "2018-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2018, "report_year": 2018, "file_period": "Y2018", "period_start_date": "2018-01-01", "period_end_date": "2018-12-31", "priority": null, "file_type": "settlement"},
 {"performance_year": 2017, "report_year": 2014, "file_period": "Y2014", "period_start_date": "2014-01-01", "period_end_date": "2014-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2017, "report_year": 2015, "file_period": "Y2015", "period_start_date": "2015-01-01", "period_end_date": "2015-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2017, "report_year": 2016, "file_period": "Y2016", "period_start_date": "2016-01-01", "period_end_date": "2016-12-31", "priority": 1, "file_type": "benchmark"},
@@ -283,6 +298,7 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2017, "report_year": 2017, "file_period": "2017Q2", "period_start_date": "2016-07-01", "period_end_date": "2017-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2017, "report_year": 2017, "file_period": "2017Q3", "period_start_date": "2016-10-01", "period_end_date": "2017-09-30", "priority": 3, "file_type": "quarterly"},
 {"performance_year": 2017, "report_year": 2017, "file_period": "2017Q4", "period_start_date": "2017-01-01", "period_end_date": "2017-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2017, "report_year": 2017, "file_period": "Y2017", "period_start_date": "2017-01-01", "period_end_date": "2017-12-31", "priority": null, "file_type": "settlement"},
 {"performance_year": 2016, "report_year": 2013, "file_period": "Y2013", "period_start_date": "2013-01-01", "period_end_date": "2013-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2016, "report_year": 2014, "file_period": "Y2014", "period_start_date": "2014-01-01", "period_end_date": "2014-12-31", "priority": 1, "file_type": "benchmark"},
 {"performance_year": 2016, "report_year": 2015, "file_period": "Y2015", "period_start_date": "2015-01-01", "period_end_date": "2015-12-31", "priority": 1, "file_type": "benchmark"},
@@ -290,7 +306,8 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 {"performance_year": 2016, "report_year": 2016, "file_period": "2016Q1", "period_start_date": "2015-04-01", "period_end_date": "2016-03-31", "priority": 5, "file_type": "quarterly"},
 {"performance_year": 2016, "report_year": 2016, "file_period": "2016Q2", "period_start_date": "2015-07-01", "period_end_date": "2016-06-30", "priority": 4, "file_type": "quarterly"},
 {"performance_year": 2016, "report_year": 2016, "file_period": "2016Q3", "period_start_date": "2015-10-01", "period_end_date": "2016-09-30", "priority": 3, "file_type": "quarterly"},
-{"performance_year": 2016, "report_year": 2016, "file_period": "2016Q4", "period_start_date": "2016-01-01", "period_end_date": "2016-12-31", "priority": 2, "file_type": "quarterly"}
+{"performance_year": 2016, "report_year": 2016, "file_period": "2016Q4", "period_start_date": "2016-01-01", "period_end_date": "2016-12-31", "priority": 2, "file_type": "quarterly"},
+{"performance_year": 2016, "report_year": 2016, "file_period": "Y2016", "period_start_date": "2016-01-01", "period_end_date": "2016-12-31", "priority": null, "file_type": "settlement"}
 ]
 </script>
 
@@ -298,7 +315,8 @@ even if an earlier or later file lists them. A beneficiary the governing file li
 <script id="alr-logic">
 const ALR = (function (seedRows) {
   // mssp_file_parameters, every row, from the JSON block above.
-  // priority: lower wins (benchmark=1, Q4=2, Q3=3, Q2=4, Q1=5, initial=6).
+  // priority: lower wins (benchmark=1, Q4=2, Q3=3, Q2=4, Q1=5, initial=6);
+  // a settlement row has none (null): it never governs a month.
   const SEED = seedRows.map(r => ({
     py: r.performance_year, period: r.file_period, start: r.period_start_date, end: r.period_end_date,
     priority: r.priority, type: r.file_type,
@@ -307,13 +325,29 @@ const ALR = (function (seedRows) {
   const BENES = ['A', 'B', 'C', 'D'];
   const ORDER_TEXT = 'initial < Q1 < Q2 < Q3 < Q4 < benchmark';
 
-  // The seed row is keyed by (performance_year, file_period). Note 'Y2025' is
-  // PY2025's initial file but PY2026's benchmark file.
-  function seedRow(py, period) {
-    const r = SEED.find(s => s.py === py && s.period === period);
-    if (!r) throw new Error('No mssp_file_parameters row for PY' + py + ' ' + period);
+  // The seed row is keyed by (performance_year, file_period, file_type), as
+  // aalr_governing_file joins it. 'Y2025' is PY2025's initial file and its
+  // settlement file, and PY2026's benchmark file. Without a fileType, the row
+  // that is not the settlement.
+  function seedRow(py, period, fileType) {
+    const r = SEED.find(s => s.py === py && s.period === period &&
+      (fileType ? s.type === fileType : s.type !== 'settlement')) || derivedBenchmark(py, period, fileType);
+    if (!r) throw new Error('No mssp_file_parameters row for PY' + py + ' ' + period + (fileType ? ' ' + fileType : ''));
     return r;
   }
+  // aalr_file_parameters (TUVA-164): a benchmark AALR (Y-year before its PY)
+  // with no seed row covers calendar Y-year, with the seed's benchmark priority.
+  function derivedBenchmark(py, period, fileType) {
+    const m = /^Y(\d{4})$/.exec(period);
+    if (!m || Number(m[1]) >= py || (fileType && fileType !== 'benchmark')) return undefined;
+    const priority = Math.max(...SEED.filter(s => s.type === 'benchmark').map(s => s.priority));
+    return { py, period, start: m[1] + '-01-01', end: m[1] + '-12-31', priority, type: 'benchmark' };
+  }
+  function row(file) { return seedRow(file.py, file.period, file.fileType); }
+  // aalr_governing_file excludes settlement ALRs explicitly (TUVA-113).
+  function governs(file) { return row(file).type !== 'settlement'; }
+  // Sort key for listing files in order: initial (6) first, settlement (no priority) last.
+  function listOrder(r) { return r.priority == null ? 0 : r.priority; }
 
   function addMonths(ym, n) {
     const [y, m] = ym.split('-').map(Number);
@@ -321,16 +355,18 @@ const ALR = (function (seedRows) {
     return Math.floor(t / 12) + '-' + String((t % 12) + 1).padStart(2, '0');
   }
 
-  function shortName(py, period) {
-    const r = seedRow(py, period);
+  function shortName(py, period, fileType) {
+    const r = seedRow(py, period, fileType);
     if (r.type === 'initial') return 'initial';
+    if (r.type === 'settlement') return 'settlement';
     if (r.type === 'benchmark') return period + ' benchmark';
     return period.slice(4); // '2025Q3' -> 'Q3'
   }
-  function label(file) { return 'PY' + file.py + ' ' + shortName(file.py, file.period); }
+  function label(file) { return 'PY' + file.py + ' ' + shortName(file.py, file.period, file.fileType); }
   function code(file) {
-    const r = seedRow(file.py, file.period);
+    const r = row(file);
     if (r.type === 'initial') return 'Ini';
+    if (r.type === 'settlement') return 'Stl';
     if (r.type === 'benchmark') return 'B' + file.period.slice(3);
     return file.period.slice(4);
   }
@@ -338,7 +374,7 @@ const ALR = (function (seedRows) {
   // A file covers 12 months from period_start_date, capped at period_end_date
   // (aalr_governing_file.file_months).
   function coverage(file) {
-    const r = seedRow(file.py, file.period);
+    const r = row(file);
     const first = r.start.slice(0, 7), last = r.end.slice(0, 7);
     const out = [];
     for (let i = 0; i < 12; i++) {
@@ -350,17 +386,17 @@ const ALR = (function (seedRows) {
 
   // order by performance_year_number, priority, t_stamp desc
   function compare(a, b) {
-    const ra = seedRow(a.py, a.period), rb = seedRow(b.py, b.period);
+    const ra = row(a), rb = row(b);
     if (ra.py !== rb.py) return ra.py - rb.py;
     if (ra.priority !== rb.priority) return ra.priority - rb.priority;
     return a.tStamp < b.tStamp ? 1 : a.tStamp > b.tStamp ? -1 : 0;
   }
 
   function whyLost(loser, winner) {
-    const rl = seedRow(loser.py, loser.period), rw = seedRow(winner.py, winner.period);
+    const rl = row(loser), rw = row(winner);
     if (rl.py !== rw.py) return 'later performance year than PY' + rw.py;
     if (rl.priority !== rw.priority)
-      return shortName(loser.py, loser.period) + ' comes before ' + shortName(winner.py, winner.period) + ' in ' + ORDER_TEXT;
+      return shortName(loser.py, loser.period, loser.fileType) + ' comes before ' + shortName(winner.py, winner.period, winner.fileType) + ' in ' + ORDER_TEXT;
     return 'older delivery (' + loser.tStamp + ', replaced by ' + winner.tStamp + ')';
   }
 
@@ -370,9 +406,14 @@ const ALR = (function (seedRows) {
   }
 
   // Per ACO and month: among delivered files covering the month, rank 1 wins.
+  // A settlement ALR is never a candidate; settled lists the ones covering the month.
   function governingFile(files, month) {
-    const covering = files.filter(f => coverage(f).includes(month));
-    if (!covering.length) return { month, winner: null, candidates: [], why: month + ': no delivered file covers this month.' };
+    const covering = files.filter(f => governs(f) && coverage(f).includes(month));
+    const settled = files.filter(f => !governs(f) && coverage(f).includes(month));
+    const settledNote = settled.length
+      ? ' ' + joinList([...new Set(settled.map(label))]) + ' also covers it, but a settlement ALR never governs a month.' : '';
+    if (!covering.length) return { month, winner: null, candidates: [], settled,
+      why: month + ': no delivered file that can govern covers this month.' + settledNote };
     const ranked = covering.slice().sort(compare);
     const winner = ranked[0];
     const candidates = ranked.map(f => ({ file: f, wins: f === winner, reason: f === winner ? 'governs' : whyLost(f, winner) }));
@@ -387,17 +428,17 @@ const ALR = (function (seedRows) {
       const pys = [...new Set(covering.map(f => f.py))];
       const samePy = covering.filter(f => f.py === winner.py);
       if (pys.length > 1) parts.push('PY' + winner.py + ' is the earliest performance year');
-      const prios = [...new Set(samePy.map(f => seedRow(f.py, f.period).priority))];
+      const prios = [...new Set(samePy.map(f => row(f).priority))];
       if (prios.length > 1)
         parts.push((pys.length > 1 ? 'within it, ' : 'all are PY' + winner.py + ' files; ') +
-          shortName(winner.py, winner.period) + ' comes last in ' + ORDER_TEXT);
-      const sameP = samePy.filter(f => f.period === winner.period);
+          shortName(winner.py, winner.period, winner.fileType) + ' comes last in ' + ORDER_TEXT);
+      const sameP = samePy.filter(f => f.period === winner.period && f.fileType === winner.fileType);
       if (sameP.length > 1)
         parts.push((parts.length ? 'and ' : '') + winner.tStamp + ' is the latest of its ' + sameP.length + ' deliveries');
       why = month + ': covered by ' + joinList(names.map((n, i) => n + (covering.filter(f => label(f) === n).length > 1 ? ' (' + covering[i].tStamp + ')' : ''))) + '. ' +
         parts.join('; ') + ' → ' + dupLabel + (sameP.length > 1 ? ' (' + winner.tStamp + ')' : '') + ' governs.';
     }
-    return { month, winner, candidates, why };
+    return { month, winner, candidates, settled, why: why + settledNote };
   }
 
   function monthsSpanned(files) {
@@ -423,15 +464,20 @@ const ALR = (function (seedRows) {
       const g = governingFile(state.files, month);
       const benes = {};
       state.benes.forEach(b => {
-        if (!g.winner) { benes[b] = { enrolled: false, flag: null, reason: 'no file covers this month' }; return; }
+        if (!g.winner) {
+          benes[b] = { enrolled: false, flag: null,
+            reason: g.settled.length ? 'no file that can govern covers this month (a settlement ALR never governs)' : 'no file covers this month' };
+          return;
+        }
         const flag = flagFor(state.listing, g.winner, b, month);
-        const elsewhere = g.candidates.filter(c => !c.wins && flagFor(state.listing, c.file, b, month) === 1).map(c => label(c.file));
+        const others = g.candidates.filter(c => !c.wins).map(c => c.file).concat(g.settled);
+        const elsewhere = others.filter(f => flagFor(state.listing, f, b, month) === 1).map(label);
         const ignored = elsewhere.length ? ' (also listed in ' + joinList(elsewhere) + ', which do not count)' : '';
         if (flag === null) benes[b] = { enrolled: false, flag, reason: 'not listed in ' + label(g.winner) + ', the governing file' + ignored };
         else if (flag === 0) benes[b] = { enrolled: false, flag, reason: 'listed in ' + label(g.winner) + ' but with EnrollFlag 0 for this month' + ignored };
         else benes[b] = { enrolled: true, flag, reason: 'listed in ' + label(g.winner) + ' with EnrollFlag 1' };
       });
-      return { month, governing: g.winner, why: g.why, candidates: g.candidates, benes };
+      return { month, governing: g.winner, why: g.why, candidates: g.candidates, settled: g.settled, benes };
     });
   }
 
@@ -452,9 +498,9 @@ const ALR = (function (seedRows) {
       case 'reset': return initialState();
       case 'receive':
       case 'redeliver': {
-        seedRow(a.py, a.period);
-        const prior = s.files.filter(f => f.py === a.py && f.period === a.period).sort(compare)[0];
-        const f = { id: a.py + '-' + a.period + '-T' + s.nextT, py: a.py, period: a.period, tStamp: 'T' + s.nextT };
+        const fileType = seedRow(a.py, a.period, a.fileType).type;
+        const prior = s.files.filter(f => f.py === a.py && f.period === a.period && f.fileType === fileType).sort(compare)[0];
+        const f = { id: a.py + '-' + a.period + '-' + fileType + '-T' + s.nextT, py: a.py, period: a.period, fileType, tStamp: 'T' + s.nextT };
         s.nextT += 1;
         s.files.push(f);
         if (a.listed) s.listing[f.id] = listingFrom(s.benes, a.listed);
@@ -489,8 +535,8 @@ const ALR = (function (seedRows) {
 
   function performanceYears() { return [...new Set(SEED.map(r => r.py))].sort((a, b) => b - a); }
 
-  return { SEED, SEED_ROWS, BENES, seedRow, coverage, compare, governingFile, enrollment, monthsSpanned, reduce, initialState,
-           label, code, shortName, filesForPy, performanceYears, addMonths };
+  return { SEED, SEED_ROWS, BENES, seedRow, row, governs, listOrder, coverage, compare, governingFile, enrollment, monthsSpanned,
+           reduce, initialState, label, code, shortName, filesForPy, performanceYears, addMonths };
 })(JSON.parse(document.getElementById('mssp-file-parameters').textContent));
 </script>
 
@@ -573,12 +619,26 @@ const SCENARIOS = [
         watch: 'PY2024 Q4 takes 2024-01..09 from Q3 and adds 2024-10..12. The PY2025 initial file governs no month.' },
     ],
   },
+  {
+    title: '7 · The settlement ALR governs no month',
+    intro: 'PY2025 Q4 covers 2025-01..12. The PY2025 settlement ALR, from CMS\'s final settlement bundle for the year, covers the same months. Bene C is only in Q4 and Bene D is only in the settlement.',
+    note: 'The settlement ALR is CMS\'s final list of the beneficiaries a performance year is reconciled on. The connector keeps it beside the governing files, as the settlement population (aalr_settlement_population), so enrollment, attribution and risk scores keep coming from the files the projection was built from.',
+    steps: [
+      { label: 'Receive PY2025 Q4 (no Bene D)', actions: [{ type: 'receive', py: 2025, period: '2025Q4', listed: ['A', 'B', 'C'] }],
+        watch: 'PY2025 Q4 governs 2025-01..12. Bene C is enrolled, Bene D is not.' },
+      { label: 'Receive PY2025 settlement (no Bene C)', actions: [{ type: 'receive', py: 2025, period: 'Y2025', fileType: 'settlement', listed: ['A', 'B', 'D'] }],
+        watch: 'Nothing changes. The settlement covers 2025 but never governs a month, so Bene C stays enrolled and Bene D stays not enrolled.' },
+      { label: 'Remove PY2025 Q4 (what if it was never delivered?)', actions: [{ type: 'removeWhere', py: 2025, period: '2025Q4' }],
+        watch: 'Still the settlement governs nothing: 2025 has no governing file, and nobody is enrolled in it.' },
+    ],
+  },
 ];
 
 // Helper the scenarios use: remove the latest delivery of a (PY, period).
 function applyAction(state, a) {
   if (a.type === 'removeWhere') {
-    const f = state.files.filter(x => x.py === a.py && x.period === a.period).sort(ALR.compare)[0];
+    const fileType = ALR.seedRow(a.py, a.period, a.fileType).type;
+    const f = state.files.filter(x => x.py === a.py && x.period === a.period && x.fileType === fileType).sort(ALR.compare)[0];
     return f ? ALR.reduce(state, { type: 'remove', fileId: f.id }) : state;
   }
   return ALR.reduce(state, a);
@@ -662,16 +722,16 @@ function applyAction(state, a) {
     pys.forEach(py => {
       const lab = document.createElement('div'); lab.className = 'py'; lab.textContent = 'PY' + py; el.appendChild(lab);
       const row = document.createElement('div'); row.className = 'row';
-      const rows = ALR.filesForPy(py).slice().sort((a, b) => b.priority - a.priority || a.period.localeCompare(b.period));
+      const rows = ALR.filesForPy(py).slice().sort((a, b) => ALR.listOrder(b) - ALR.listOrder(a) || a.period.localeCompare(b.period));
       rows.forEach((r, i) => {
-        if (i > 0 && r.type === 'benchmark' && rows[i - 1].type !== 'benchmark') { const s = document.createElement('span'); s.className = 'group-sep'; row.appendChild(s); }
+        if (i > 0 && (r.type === 'benchmark' || r.type === 'settlement') && rows[i - 1].type !== r.type) { const s = document.createElement('span'); s.className = 'group-sep'; row.appendChild(s); }
         const btn = document.createElement('button');
-        const name = ALR.shortName(py, r.period);
-        const have = state.files.some(f => f.py === py && f.period === r.period);
+        const name = ALR.shortName(py, r.period, r.type);
+        const have = state.files.some(f => f.py === py && f.period === r.period && f.fileType === r.type);
         btn.textContent = (have ? 'Redeliver ' : '') + name;
-        const cov = ALR.coverage({ py, period: r.period });
-        btn.title = 'PY' + py + ' ' + name + ' covers ' + cov[0] + '..' + cov[cov.length - 1];
-        btn.onclick = () => dispatch([{ type: 'receive', py, period: r.period }], (have ? 'Redelivered ' : 'Received ') + 'PY' + py + ' ' + name);
+        const cov = ALR.coverage({ py, period: r.period, fileType: r.type });
+        btn.title = 'PY' + py + ' ' + name + ' covers ' + cov[0] + '..' + cov[cov.length - 1] + (r.type === 'settlement' ? ', but never governs a month' : '');
+        btn.onclick = () => dispatch([{ type: 'receive', py, period: r.period, fileType: r.type }], (have ? 'Redelivered ' : 'Received ') + 'PY' + py + ' ' + name);
         row.appendChild(btn);
       });
       el.appendChild(row);
@@ -680,8 +740,8 @@ function applyAction(state, a) {
 
   function sortedFiles() {
     return state.files.slice().sort((a, b) => {
-      const ra = ALR.seedRow(a.py, a.period), rb = ALR.seedRow(b.py, b.period);
-      return a.py - b.py || rb.priority - ra.priority || (a.tStamp < b.tStamp ? -1 : 1);
+      const ra = ALR.row(a), rb = ALR.row(b);
+      return a.py - b.py || ALR.listOrder(rb) - ALR.listOrder(ra) || (a.tStamp < b.tStamp ? -1 : 1);
     });
   }
 
@@ -711,7 +771,7 @@ function applyAction(state, a) {
     });
     el.querySelectorAll('[data-redeliver]').forEach(btn => btn.onclick = () => {
       const f = state.files.find(x => x.id === btn.dataset.redeliver);
-      dispatch([{ type: 'redeliver', py: f.py, period: f.period }], 'Redelivered ' + ALR.label(f));
+      dispatch([{ type: 'redeliver', py: f.py, period: f.period, fileType: f.fileType }], 'Redelivered ' + ALR.label(f));
     });
     el.querySelectorAll('[data-remove]').forEach(btn => btn.onclick = () => {
       const f = state.files.find(x => x.id === btn.dataset.remove);
@@ -759,7 +819,10 @@ function applyAction(state, a) {
       months.forEach(m => {
         const r = byMonth[m];
         let cls = '', title = '';
-        if (cov.has(m)) {
+        if (cov.has(m) && !ALR.governs(f)) {
+          cls = 'cov';
+          title = 'covers ' + m + ' but never governs it: a settlement ALR is the settlement population, not a governing file';
+        } else if (cov.has(m)) {
           const c = r.candidates.find(c => c.file.id === f.id);
           cls = c.wins ? 'win' : 'cov';
           title = c.wins ? 'governs ' + m : 'loses ' + m + ': ' + c.reason;
@@ -803,11 +866,14 @@ function applyAction(state, a) {
     if (!r) { el.innerHTML = '<p class="fine">Hover over a month to see why its file governs. Click a month to pin the explanation and to set a beneficiary\'s EnrollFlag to 0 for that month.</p>'; return; }
     let h = '<h3>' + m + (pinned ? ' <span class="tag">pinned, click again to unpin</span>' : '') + '</h3>';
     h += '<div class="why">' + esc(r.why) + '</div>';
-    if (r.candidates.length) {
+    if (r.candidates.length || r.settled.length) {
       h += '<b>Files that cover ' + m + '</b><ul>';
       r.candidates.forEach(c => {
         h += '<li>' + esc(ALR.label(c.file)) + ' <span class="fine">' + c.file.tStamp + '</span> ' +
              (c.wins ? '<span class="tag win">governs</span>' : '<span class="fine">loses: ' + esc(c.reason) + '</span>') + '</li>';
+      });
+      r.settled.forEach(f => {
+        h += '<li>' + esc(ALR.label(f)) + ' <span class="fine">' + f.tStamp + '</span> <span class="fine">never governs: a settlement ALR</span></li>';
       });
       h += '</ul><b>Beneficiaries</b><ul>';
       state.benes.forEach(b => {
@@ -869,7 +935,7 @@ function applyAction(state, a) {
   function renderSeedTable() {
     const cols = Object.keys(ALR.SEED_ROWS[0]);
     let h = '<table class="seed"><thead><tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>';
-    ALR.SEED_ROWS.forEach(r => { h += '<tr>' + cols.map(c => '<td>' + esc(r[c]) + '</td>').join('') + '</tr>'; });
+    ALR.SEED_ROWS.forEach(r => { h += '<tr>' + cols.map(c => '<td>' + (r[c] == null ? '' : esc(r[c])) + '</td>').join('') + '</tr>'; });
     $('seedTable').innerHTML = h + '</tbody></table>';
   }
 

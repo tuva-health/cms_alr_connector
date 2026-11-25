@@ -38,7 +38,10 @@ models:
     description: >
       Combined table of all historical assignment list reports, pivoted to one
       row per beneficiary, month and Table 1-1 file. Tables 1-2, 1-4, 1-6 and
-      1-9 are joined from the same delivery as the Table 1-1 row.
+      1-9 are joined from the same delivery as the Table 1-1 row (delivery_id).
+      Settlement AALRs (alr_file_type settlement) are left out: a settlement
+      never governs a month (TUVA-113), and its rows are in
+      aalr_settlement_population.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
@@ -47,6 +50,34 @@ models:
           arguments:
             combination_of_columns: [bene_mbi_id, enroll_month, file_name]
 
+  - name: aalr_file_parameters
+    description: >
+      The parameters every ALR file is placed by (TUVA-164), one row per
+      (performance_year, file_period, file_type): the mssp_file_parameters
+      seed, plus a derived row for each delivered benchmark AALR the seed has
+      no row for (calendar year Y<yyyy>, the seed's benchmark priority).
+      Benchmark years are fixed for an agreement period, so an ACO past the
+      agreement's first year gets benchmark AALRs for years earlier than the
+      seed's PY-3..PY-1 rows. aalr_history, aalr_governing_file and
+      aalr_settlement_population join a file to it on performance year,
+      period and alr_file_type.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+    columns:
+      - name: parameter_source
+        description: >
+          seed for a mssp_file_parameters row, derived for a benchmark row
+          built from the file name.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [seed, derived]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [performance_year, file_period, file_type]
+
   - name: aalr_governing_file
     description: >
       The ALR that governs each enrollment month, one row per ACO and month: of
@@ -54,9 +85,8 @@ models:
       performance year, then the lowest mssp_file_parameters priority (benchmark
       last within its performance year), then the latest T-stamp. Benchmark ALRs
       ship with the following performance year, so one governs only months no
-      earlier performance year's file covers. Join any ALR table to it on (aco_id,
-      performance_year, file_period, t_stamp) to read that table from the
-      governing file.
+      earlier performance year's file covers. Join any ALR table to it on
+      delivery_id to read that table from the governing file.
     config:
       schema: |
         {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
@@ -73,14 +103,74 @@ models:
         description: Delivery T-stamp of the governing file, ITERATION without its _1-<table> suffix (e.g. T0310000).
       - name: file_name
         description: The governing file's Table 1-1 file name.
+      - name: delivery_id
+        description: >
+          The governing file's delivery, file_name without its _1-<table>.csv
+          suffix (the staging models' delivery_id). Unlike (aco_id,
+          performance_year, file_period, t_stamp), it tells apart a settlement
+          AALR and an initial assignment shipped under one T-stamp.
       - name: priority
         description: mssp_file_parameters priority of the governing file.
       - name: alr_file_type
-        description: mssp_file_parameters file_type of the governing file (initial, quarterly, benchmark).
+        description: >
+          mssp_file_parameters file_type of the governing file (initial,
+          quarterly, benchmark), which matches the file's alr_file_type. Never
+          settlement: a settlement AALR governs no month (TUVA-113).
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [aco_id, enroll_month]
+
+  - name: aalr_settlement_population
+    description: >
+      The settlement population (TUVA-113): one row per beneficiary and
+      settlement (STLMT) AALR delivery, with that delivery's Table 1-1 row
+      (EnrollFlags, CMS-HCC scores, HCC flags, bene_psnyrs_dual), its
+      mssp_file_parameters period, its top TIN and NPI (Tables 1-2 and 1-4),
+      and its Table 1-6 and 1-9 fields, including the person-years
+      bene_psnyrs and bene_psnyrs_lis_dual, all joined on delivery_id. A
+      settlement AALR never governs a month, so these rows reach no other
+      model. A STLMT bundle comes embargoed (T0000000) and unembargoed
+      (T1111111). In the one real bundle seen so far the settlement AALR was
+      only in the embargoed copy (the workbook was in both). A settlement AALR
+      delivered more than once keeps every delivery, and is_latest_delivery
+      marks the latest.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+    columns:
+      - name: aco_id
+        description: ACO ID, the second dot-separated part of file_name (A<ACO>).
+      - name: t_stamp
+        description: The delivery's T-stamp (T0000000 for the embargoed copy of a STLMT bundle, T1111111 for the unembargoed one).
+      - name: delivery_id
+        description: >
+          The settlement delivery: file_name without its _1-<table>.csv
+          suffix. Every table on the row is joined on it.
+        data_tests:
+          - not_null
+      - name: is_latest_delivery
+        description: >
+          True on the rows of the latest T-stamp (text order) among the ACO
+          and performance year's settlement deliveries: the only delivery's
+          rows when there is one (the embargoed T0000000 copy, in the one real
+          bundle seen so far), else the latest delivery's. A beneficiary listed only in an earlier copy has no row with
+          it true.
+        data_tests:
+          - not_null
+      - name: period_start_date
+        description: >
+          mssp_file_parameters period start of the settlement row: 1 January
+          of the performance year. EnrollFlag1..12 are its twelve months.
+      - name: bene_psnyrs
+        description: >
+          Table 1-9 person-years, a fraction of a year (0.75 for 9 eligible
+          months). NULL when the delivery has no Table 1-9 row for the
+          beneficiary.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [delivery_id, bene_mbi_id]
 
   - name: aalr_history_filtered
     description: >
@@ -201,7 +291,10 @@ unit_tests:
           'AALR' as file_type,
           '2023Q4' as file_period,
           '2023' as performance_year,
-          'T0000000_1-1' as iteration
+          'T0000000_1-1' as iteration,
+          -- AALR with a quarterly period token: neither annual shape, so unclassified
+          null as alr_file_type,
+          'P.A0001.ACO.AALR.2023Q4.D231001.T0000000' as delivery_id
 
   - name: enrollment_keeps_enroll_flag_drops_not_eligible
     description: >

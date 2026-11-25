@@ -57,6 +57,15 @@ model-paths: ["models"]
 seed-paths: ["seeds"]
 test-paths: ["tests"]
 macro-paths: ["macros"]
+# The fixtures deliberately include one file no parameters row can match (A18,
+# TUVA-164), so the connector's alr_file_without_file_parameters test warns
+# here instead of failing; fixture_a18_unmatched_file_is_named asserts it names
+# exactly that file. A client project can downgrade it the same way.
+data_tests:
+  cms_aalr_connector:
+    alr_file_without_file_parameters:
+      +severity: warn
+
 clean-targets:
   - "target"
   - "dbt_packages"

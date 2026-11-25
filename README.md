@@ -20,7 +20,7 @@ Install it as a package in your own dbt project, as [cms_mssp_connector](https:/
 - **Practice:** the ACO participant TIN with the most primary care services in Table 1-2 (`B_EM_LINE_CNT_T`).
 - **Provider:** under that TIN, the individual NPI with the most primary care services in Table 1-4 (`PCS_COUNT`). An NPI with more services under a different TIN is not used.
 - **Ties:** a TIN tie on `B_EM_LINE_CNT_T` goes to the lowest `MASTER_ID`, and an NPI tie on `PCS_COUNT` to the lowest `NPI_USED`.
-- **Same delivery:** Tables 1-2 and 1-4 are read only from the delivery that governs the month (see [Which file decides each month](#which-file-decides-each-month)), matched on ACO, performance year, report period and T-stamp. If a redelivery has no Table 1-2 or 1-4 rows for a beneficiary, their practice and provider are NULL for the months it governs, even when the original delivery had them.
+- **Same delivery:** Tables 1-2 and 1-4 are read only from the delivery that governs the month (see [Which file decides each month](#which-file-decides-each-month)), matched on the delivery: the file name without its `_1-<table>.csv` suffix. If a redelivery has no Table 1-2 or 1-4 rows for a beneficiary, their practice and provider are NULL for the months it governs, even when the original delivery had them.
 - A beneficiary with no Table 1-2 or 1-4 rows has a NULL practice and provider. The ALR User's Guide, sections 1.2 and 1.4, says this happens for beneficiaries seen only at a CCN (FQHC, RHC, Method II CAH, ETA hospital) or assigned only through voluntary alignment.
 - **Person:** `person_id` (and `member_id`, `patient_id`) is the beneficiary's current MBI, not the MBI the ALR lists. The ALR MBI is mapped through the CCLF9 crosswalk, medicare_cclf_connector's `int_beneficiary_xref_deduped`, with the same join medicare_cclf_connector uses for ALR enrollment: the crosswalk's current MBI where the ALR MBI is a previous one, else the ALR MBI. Attribution therefore sits under the same person as eligibility and joins Tuva's `member_month` after an MBI change. If the governing file lists both a previous and the current MBI for the same month, the row from the file ranked first by the governing-file order is kept, then the row already carrying the current MBI, so each person-month has one row (our choice; the ALR spec doesn't cover it).
 
@@ -30,6 +30,8 @@ Before v1.0.0:
 - Both columns were NULL for every beneficiary on DuckDB, because the TIN and NPI ranking dropped any row with a blank column such as `BENE_HIC_NUM` (TUVA-112). Snowflake was unaffected.
 - Ties were broken by whatever order the warehouse returned the rows in, and a redelivered period could pick up the TIN and NPI of the delivery it replaced (TUVA-108).
 - `person_id` was the MBI the ALR lists, with no crosswalk, so after an MBI change the months reported under the previous MBI never joined Tuva's `member_month` (TUVA-121).
+
+Up to v1.1.1, a delivery was matched on ACO, performance year, report period and T-stamp. A settlement AALR and the initial assignment can share all four, so their Table 1-2, 1-4, 1-6 and 1-9 rows were pooled (TUVA-152).
 <br/><br/>
 
 ## 🔌 Database Support
@@ -93,9 +95,34 @@ The field `file_name` is used throughout this connector to determine the perform
 | Report | `file_name` |
 |---|---|
 | Quarterly ALR | `P.A<ACO>.ACO.QALR.<PY>Q<n>.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, e.g. `...QALR.2025Q3.D259999...` |
-| Annual (benchmark) ALR | `P.A<ACO>.ACO.AALR.Y<yyyy>.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, e.g. `...AALR.Y2023.D259999...` |
+| Annual (benchmark) ALR | `P.A<ACO>.ACO.AALR.Y<yyyy>.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, with `<yyyy>` before the performance year, e.g. `...AALR.Y2023.D259999...` |
+| Initial assignment ALR (HASSGN bundle) | `P.A<ACO>.ACO.AALR.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, with no period part |
+| Settlement ALR (STLMT bundle) | `P.A<ACO>.ACO.AALR.Y<yyyy>.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, with `<yyyy>` the performance year itself, e.g. `...AALR.Y2025.D259999...` |
 
-The fourth part is the report type (`QALR` or `AALR`) and the fifth the report period (`<PY>Q<n>` or `Y<yyyy>`). The two digits after `D` in the sixth part give the performance year (`D25…` is PY 2025). A name with no period part, `P.A<ACO>.ACO.AALR.D<YY>9999.T<nnnnnnn>_1-<table>.csv`, is read as the initial assignment for PY 20YY. The performance year and period are joined to the `mssp_file_parameters` seed, whose `priority` picks the file that wins: lower is preferred.
+The fourth part is the report type (`QALR` or `AALR`) and the fifth the report period (`<PY>Q<n>` or `Y<yyyy>`). The two digits after `D` in the sixth part give the performance year (`D25…` is PY 2025). A name with no period part is read as the initial assignment for PY 20YY, with period `Y20YY`. The staging models' `alr_file_type` classifies each file as `quarterly`, `initial`, `benchmark` or `settlement` from these parts, and `delivery_id` (the file name without `_1-<table>.csv`) identifies its delivery; the connector joins one ALR table to another on `delivery_id`. The performance year, period and `alr_file_type` are joined to the `mssp_file_parameters` seed, whose `priority` picks the file that wins: lower is preferred.
+
+**Settlement ALRs never govern a month.** CMS's final settlement bundle for a performance year carries an AALR for that year, CMS's final list of the beneficiaries it reconciles the year on. It has the same performance year and period as the year's initial assignment, and CMS can ship both under one T-stamp (`D259999.T0000000`). The connector classifies it as `settlement`, and its `mssp_file_parameters` row (with no `priority`) maps its `EnrollFlag1`..`EnrollFlag12` onto January to December of the performance year. It is kept out of `aalr_history` and `aalr_governing_file` explicitly, so `enrollment`, `provider_attribution` and every model they feed keep the quarterly, initial and benchmark ALRs, the files a projection is built from (TUVA-113).
+
+The settlement sits beside them in its own model, `aalr_settlement_population`: one row per beneficiary and settlement delivery, with the delivery's Table 1-1 row (EnrollFlags, CMS-HCC scores, HCC flags), its top TIN and NPI (Tables 1-2 and 1-4, picked as for attribution), and its Table 1-6 and 1-9 fields, including the person-years `bene_psnyrs` and `bene_psnyrs_lis_dual`. Every table is joined on the delivery. A STLMT bundle comes in an embargoed (`T0000000`) and an unembargoed (`T1111111`) copy. In the one real bundle seen so far, the settlement workbook shipped byte-identical in both, but the settlement AALR only in the embargoed copy. The model still handles a settlement AALR delivered more than once: it keeps every delivery, and `is_latest_delivery` marks the latest T-stamp's rows, the ones to use (the only delivery's, when there is one). Up to v1.1.1 a settlement AALR was read as the performance year's initial assignment (TUVA-152).
+
+#### Benchmark files:
+A benchmark AALR (`AALR.Y<yyyy>`, `<yyyy>` before the performance year) covers calendar year `<yyyy>`. The seed's benchmark rows are the three years before each performance year, which are the benchmark years only in the **first** performance year of an agreement period. Benchmark years are fixed for the whole agreement period:
+
+- 42 CFR 425.652(a)(9): in the second and later performance years the benchmark is adjusted, still taking into account "the 3 most recent years prior to the start of the agreement period" (425.601(a)(9) has the same wording for agreements from July 2019 to 2023).
+- CMS's Shared Savings and Losses, Assignment and Quality Performance Standard Methodology Specifications, §4.1.3: the annual adjustment is "based on the same 3 benchmark years". Appendix B, Table 9 gives an agreement starting in 2022: its PY2025 benchmark years are 2019 to 2021.
+- ALR and ASR User's Guide, Appendix Table 6: the Preliminary and Adjusted Historical Benchmark package (BNMRK, March of the performance year) has an "ALR for each BY". The 2026 report schedule sends the adjusted package to ACOs in an agreement period that began before the performance year, when their participant list, assignment methodology or the regulations changed.
+
+So an ACO past its agreement's first year gets benchmark AALRs for years the seed has no row for, for example `AALR.Y2021.D259999` for an agreement that started in 2024. The connector derives their parameters in `aalr_file_parameters`: calendar year `<yyyy>` and the seed's benchmark priority, the same as every benchmark row in the seed. Up to v1.1.1 such a file got 12 rows per beneficiary with a NULL `enroll_month` in `aalr_history`, which failed `aalr_history`'s uniqueness test and covered no month (TUVA-164).
+
+#### Files with no parameters row:
+Only benchmark parameters are derived. Quarterly and initial periods aren't calendar years. Any other file that matches no `mssp_file_parameters` row fails the `alr_file_without_file_parameters` test. That covers a quarterly or initial file for a performance year the seed doesn't cover yet, a settlement the seed has no row for, or a name `alr_file_type` can't classify. The failure lists each file's `delivery_id`, with the performance year, period and `alr_file_type` read from its name. The file reaches no model past staging, so its months are missing from `enrollment` until a release adds its seed row. To build anyway, downgrade the test in your project:
+
+```yaml
+data_tests:
+  cms_aalr_connector:
+    alr_file_without_file_parameters:
+      +severity: warn
+```
 
 #### Which file decides each month:
 Several ALRs cover the same months: the quarterly ALRs of a performance year overlap each other, the benchmark ALRs overlap the quarterlies, and the next performance year's reports overlap the current one. For each month the connector picks **one governing file** per ACO, and that file alone decides who is enrolled:
@@ -104,13 +131,15 @@ Several ALRs cover the same months: the quarterly ALRs of a performance year ove
 2. Within that year, take the **last file in the order initial < Q1 < Q2 < Q3 < Q4 < benchmark** (the `priority` column of `mssp_file_parameters`). The benchmark ALR is last only within its own performance year.
 3. If the same period was delivered more than once, the **later T-stamp** wins.
 
-Benchmark ALRs ship with the *following* performance year: PY2025 delivers Y2022..Y2024. Once an earlier performance year's own files cover a calendar year (PY2024 Q4 covers 2024), a later year's benchmark never governs those months. A benchmark governs only months that no file from an earlier performance year covers.
+Benchmark ALRs ship with a later performance year than the year they cover: in the first year of an agreement period, PY2025 delivers Y2022..Y2024 (see [Benchmark files](#benchmark-files) for later years). Once an earlier performance year's own files cover a calendar year (PY2024 Q4 covers 2024), a later year's benchmark never governs those months. A benchmark governs only months that no file from an earlier performance year covers. When the same benchmark year arrives with more than one performance year, the earliest performance year's copy governs.
 
 The governing file supplies all of the month's ALR-sourced fields: enrollment status, risk scores and HCC flags, demographics, TIN/NPI attribution, and the Table 1-6 and 1-9 fields. CCLF's `data_sharing_flag` is separate: it comes from the CCLF8 demographics in `medicare_cclf_connector`, so the choice of ALR doesn't affect it.
 
 A file covers the twelve months its `EnrollFlag1`..`EnrollFlag12` map onto, counted from the file's `period_start_date` in `mssp_file_parameters`. **A beneficiary the governing file does not list is not enrolled for that month**, even if an earlier or later file lists them. For example, a beneficiary dropped from 2025Q3 is not enrolled in any 2025Q3 month, and one removed in a redelivery is not enrolled in the months it governs.
 
 To see the rule play out month by month, open [docs/alr-month-precedence.html](docs/alr-month-precedence.html), an interactive page with guided walkthroughs. GitHub shows the page's source rather than the page, so download the file (**Download raw file**) and open it in a browser.
+
+A settlement ALR is never one of these files; see [File name](#file-name) above.
 
 The CMS ALR documentation doesn't say how overlapping reports combine, so this rule is our choice. It replaces an earlier one that picked the earliest file per beneficiary, which kept such beneficiaries enrolled from a superseded file and, after an MBI change, could enroll the same person twice in a month. The governing file for each month is in the `aalr_governing_file` model.
 
