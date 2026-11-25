@@ -44,7 +44,7 @@ These are the warehouses CI builds on every pull request, and the ones the relea
 
 ## 📦 Supported versions
 
-| | v1.1.1 |
+| | v1.2.0 |
 |---|---|
 | dbt Core | 1.10.5 or later (Tuva Core's `require-dbt-version` is `>=1.10.5,<3.0.0`). CI runs dbt-core 1.10.20 with dbt-duckdb 1.10.1 and dbt-snowflake 1.10.7, pinned in `uv.lock`. |
 | Medicare CCLF Connector | `v1.0.2`, installed by this package's `packages.yml`. |
@@ -61,7 +61,7 @@ Add the connector to your project's `packages.yml`, pinned to a release tag, and
 ```yaml
 packages:
   - git: "https://github.com/tuva-health/cms_alr_connector.git"
-    revision: v1.1.1
+    revision: v1.2.0
 ```
 
 It installs the Medicare CCLF Connector `v1.0.2` and Tuva Core `v1.0.0`. If your project
@@ -252,7 +252,7 @@ Projects install a release by tag:
 ```yaml
 packages:
   - git: https://github.com/tuva-health/cms_alr_connector.git
-    revision: v1.1.1
+    revision: v1.2.0
 ```
 <br/><br/>
 
